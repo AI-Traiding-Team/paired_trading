@@ -52,9 +52,11 @@ https://apptractor.ru/develop/user-story-plan-deystviy-dlya-razrabotchika.html
 `temp['minute'] = date.apply(lambda x: x.minute)`
    
    - Close1, Close2, Value1, Value2
-   - Close1 - Close2
-   - Close1.diff(), Close2.diff()
-   - Close1.pct_change(), Close2.pct_change()
+   - `Close1 - Close2`
+   - `np.log(Close1)`, `np.log(Close2)`, `np.log(Value1)`, `np.log(Value2)`
+   - `Close1.diff()`, `Close2.diff()`
+   - относительные изменения к предыдущему дню c логарифмированием 
+`np.log((Close1)/(Close1.shift(1)))`, `np.log((Close2)/(Close2.shift(1)))`
    - синусы от цен: `df['sin_Close1'] = df['Close1'].apply(lambda x: np.sin(x))  # Нормализация Close от 0 до 1 синусом`
    - если есть еще идеи, можно обсудить
 
