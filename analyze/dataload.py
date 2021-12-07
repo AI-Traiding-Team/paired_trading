@@ -3,10 +3,11 @@ import sys
 import datetime
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from typing import Tuple
 from dataclasses import dataclass
 
-__version__ = 0.0006
+__version__ = 0.0007
 
 @dataclass
 class TradeConstants:
@@ -86,7 +87,7 @@ class OHLCVData:
             else:
                 self.load()
         self.df = self.df.loc[(self.df.index >= self.start_datetime) & (self.df.index <= self.end_datetime)]
-        print(self.df.head().to_string())
+        # print(self.df.head().to_string())
         pass
 
     def load(self):
@@ -109,28 +110,71 @@ class OHLCVData:
 class DataLoad(object):
     def __init__(self,
                  pairs_symbols: list,
-                 time_intervals: list):
-        self.pairs_symbols = pairs_symbols
-        self.data: dict = {}
+                 time_intervals: list,
+                 source_directory,
+                 start_period: str = None,
+                 end_period: str = None,
+                 ):
+        self.start_period: str = start_period
+        self.end_period: str = end_period
+        self.pairs_symbols: list = pairs_symbols
+        self.time_intervals: list = time_intervals
+        self.source_directory: str = source_directory
+        self.ohlcvbase: dict = {}
+        self.get_all_data()
+        pass
+
+    def get_all_data(self):
+        for timeframe in self.time_intervals:
+            for symbol in self.pairs_symbols:
+                source_filename = f'{symbol}-{timeframe}-data.csv'
+                source_path_filename = os.path.join(self.source_directory, source_filename)
+                ohlcv = OHLCVData(source_path_filename)
+                if (self.start_period is not None) and (self.end_period is not None):
+                    ohlcv.set_period(self.start_period, self.end_period)
+                self.ohlcvbase.update({f"{symbol}-{timeframe}": ohlcv})
+
+    def show_all_data(self, usecol='close'):
+        plt.figure(figsize=(45, 18))
+        # Don't allow the axis to be on top of your data
+        # plt.set_axisbelow(True)
+        # Turn on the minor TICKS, which are required for the minor GRID
+        plt.minorticks_on()
+        # Customize the major grid
+        plt.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+        # Customize the minor grid
+        plt.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+        for timeframe in self.time_intervals:
+            for symbol in self.pairs_symbols:
+                ohlcv_df = self.ohlcvbase[f"{symbol}-{timeframe}"].df.copy()
+                normalized_df = (ohlcv_df[usecol] - ohlcv_df[usecol].min()) / (ohlcv_df[usecol].max() - ohlcv_df[usecol].min())
+                plt.plot(normalized_df,
+                         label=f"{symbol}-{timeframe}")
+        # plt.gca().set_aspect('equal', adjustable='datalim')
+        # plt.axis('scaled')
+        plt.legend()
+        plt.show()
         pass
 
 
-def create_cuts_from_data(source_directory,
-                          target_directory,
-                          pairs_list,
-                          time_intervals,
-                          start_period,
-                          end_period,
-                          suffix='cut'):
-    for timeframe in time_intervals:
-        for symbol in pairs_list:
-            source_filename = f'{symbol}-{timeframe}-data.csv'
-            source_path_filename = os.path.join(source_directory, source_filename)
-            ohlcv = OHLCVData(source_path_filename)
-            ohlcv.set_period(start_period, end_period)
-            target_filename = f'{symbol}-{timeframe}-{suffix}.csv'
-            target_path_filename = os.path.join(target_directory, target_filename)
-            ohlcv.save_current_period(target_path_filename)
+    @staticmethod
+    def create_cuts_from_data(source_directory,
+                              target_directory,
+                              pairs_symbols,
+                              time_intervals,
+                              start_period,
+                              end_period,
+                              suffix='cut'):
+        for timeframe in time_intervals:
+            for symbol in pairs_symbols:
+                source_filename = f'{symbol}-{timeframe}-data.csv'
+                source_path_filename = os.path.join(source_directory, source_filename)
+                ohlcv = OHLCVData(source_path_filename)
+                ohlcv.set_period(start_period, end_period)
+                target_filename = f'{symbol}-{timeframe}-{suffix}.csv'
+                target_path_filename = os.path.join(target_directory, target_filename)
+                ohlcv.save_current_period(target_path_filename)
+
     pass
 
 if __name__ == '__main__':
@@ -153,13 +197,21 @@ if __name__ == '__main__':
              ]
     intervals = ['1m']
 
-    create_cuts_from_data("/home/cubecloud/Python/projects/sunday_data/pairs_data/",
-                          "/home/cubecloud/Python/projects/paired_trading/source_root",
-                          pairs,
-                          intervals,
-                          '2021-09-01 00:00:00',
-                          '2021-12-06 23:59:59')
+    database = DataLoad(pairs_symbols=pairs,
+                        time_intervals=intervals,
+                        source_directory="/home/cubecloud/Python/projects/sunday_data/pairs_data/",
+                        start_period='2021-09-01 00:00:00',
+                        end_period='2021-12-06 23:59:59'
+                        )
+    database.show_all_data()
 
+
+    # DataLoad.create_cuts_from_data("/home/cubecloud/Python/projects/sunday_data/pairs_data/",
+    #                                "/home/cubecloud/Python/projects/paired_trading/source_root",
+    #                                pairs,
+    #                                intervals,
+    #                                '2021-09-01 00:00:00',
+    #                                '2021-12-06 23:59:59')
 
     # pair = OHLCVData('/home/cubecloud/Python/projects/paired_trading/source_root/ADAUSDT-15m-data.csv')
     # pair.set_period('2021-09-01 00:00:00', '2021-12-06 23:59:59')
