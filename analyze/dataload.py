@@ -3,11 +3,13 @@ import sys
 import datetime
 import numpy as np
 import pandas as pd
+import itertools
 import matplotlib.pyplot as plt
+
 from typing import Tuple
 from dataclasses import dataclass
 
-__version__ = 0.0007
+__version__ = 0.0008
 
 @dataclass
 class TradeConstants:
@@ -150,11 +152,73 @@ class DataLoad(object):
                 normalized_df = (ohlcv_df[usecol] - ohlcv_df[usecol].min()) / (ohlcv_df[usecol].max() - ohlcv_df[usecol].min())
                 plt.plot(normalized_df,
                          label=f"{symbol}-{timeframe}")
-        # plt.gca().set_aspect('equal', adjustable='datalim')
-        # plt.axis('scaled')
         plt.legend()
         plt.show()
         pass
+
+    def show_combinations_diff(self, usecol='close', savepath: str = None):
+        symbols_combo_list = [elem for elem in itertools.combinations(self.pairs_symbols, 2)]
+        for symbols_combo in symbols_combo_list:
+            for timeframe in self.time_intervals:
+                plt.figure(figsize=(45, 18))
+                # Don't allow the axis to be on top of your data
+                # plt.set_axisbelow(True)
+                # Turn on the minor TICKS, which are required for the minor GRID
+                plt.minorticks_on()
+                # Customize the major grid
+                plt.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+                # Customize the minor grid
+                plt.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+                for symbol in symbols_combo:
+                    ohlcv_df_1 = self.ohlcvbase[f"{symbols_combo[0]}-{timeframe}"].df.copy()
+                    ohlcv_df_2 = self.ohlcvbase[f"{symbols_combo[1]}-{timeframe}"].df.copy()
+                    normalized_df_1 = (ohlcv_df_1[usecol] - ohlcv_df_1[usecol].min()) / (
+                                ohlcv_df_1[usecol].max() - ohlcv_df_1[usecol].min())
+                    normalized_df_2 = (ohlcv_df_2[usecol] - ohlcv_df_2[usecol].min()) / (
+                                ohlcv_df_2[usecol].max() - ohlcv_df_2[usecol].min())
+                    diff_df = normalized_df_1 - normalized_df_2
+                    plt.plot(diff_df, label=f"{symbols_combo[0]}-{symbols_combo[1]}-{timeframe}")
+                plt.legend()
+                if savepath is None:
+                    plt.show()
+                else:
+                    path_filename = os.path.join(savepath, f"{symbols_combo[0]}-{symbols_combo[1]}-{timeframe}.png")
+                    plt.savefig(path_filename)
+                    plt.show()
+        pass
+
+    # def show_histogram_diff(self, usecol='close', savepath: str = None):
+    #     symbols_combo_list = [elem for elem in itertools.combinations(self.pairs_symbols, 2)]
+    #     for symbols_combo in symbols_combo_list:
+    #         for timeframe in self.time_intervals:
+    #             plt.figure(figsize=(45, 18))
+    #             # Don't allow the axis to be on top of your data
+    #             # plt.set_axisbelow(True)
+    #             # Turn on the minor TICKS, which are required for the minor GRID
+    #             plt.minorticks_on()
+    #             # Customize the major grid
+    #             plt.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+    #             # Customize the minor grid
+    #             plt.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+    #             for symbol in symbols_combo:
+    #                 ohlcv_df_1 = self.ohlcvbase[f"{symbols_combo[0]}-{timeframe}"].df.copy()
+    #                 ohlcv_df_2 = self.ohlcvbase[f"{symbols_combo[1]}-{timeframe}"].df.copy()
+    #                 normalized_df_1 = (ohlcv_df_1[usecol] - ohlcv_df_1[usecol].min()) / (
+    #                             ohlcv_df_1[usecol].max() - ohlcv_df_1[usecol].min())
+    #                 normalized_df_2 = (ohlcv_df_2[usecol] - ohlcv_df_2[usecol].min()) / (
+    #                             ohlcv_df_2[usecol].max() - ohlcv_df_2[usecol].min())
+    #                 diff_df = normalized_df_1 - normalized_df_2
+    #                 diff_df
+    #                 plt.plot(diff_df, label=f"{symbols_combo[0]}-{symbols_combo[1]}-{timeframe}")
+    #             plt.legend()
+    #             if savepath is None:
+    #                 plt.show()
+    #             else:
+    #                 path_filename = os.path.join(savepath, f"{symbols_combo[0]}-{symbols_combo[1]}-{timeframe}.png")
+    #                 plt.savefig(path_filename)
+    #                 plt.show()
+    #     pass
+
 
 
     @staticmethod
@@ -177,6 +241,7 @@ class DataLoad(object):
 
     pass
 
+
 if __name__ == '__main__':
     """
     Current list contains list of TOP 12 cryptocurrencies by https://coinmarketcap.com/
@@ -193,7 +258,7 @@ if __name__ == '__main__':
              "DOTUSDT",
              "LUNAUSDT",
              "DOGEUSDT",
-             "AVAXUSDT"
+             # "AVAXUSDT"
              ]
     intervals = ['1m']
 
@@ -203,7 +268,9 @@ if __name__ == '__main__':
                         start_period='2021-09-01 00:00:00',
                         end_period='2021-12-06 23:59:59'
                         )
-    database.show_all_data()
+    # database.show_all_data()
+    database.show_combinations_diff(savepath="/home/cubecloud/Python/projects/paired_trading/analyze/pics")
+
 
 
     # DataLoad.create_cuts_from_data("/home/cubecloud/Python/projects/sunday_data/pairs_data/",
