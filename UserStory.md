@@ -51,7 +51,7 @@ https://apptractor.ru/develop/user-story-plan-deystviy-dlya-razrabotchika.html
 
 `temp['minute'] = date.apply(lambda x: x.minute)`
    
-   - Close1, Close2, Value1, Value2
+   - `Close1`, `Close2`, `Value1`, `Value2`
    - `Close1 - Close2`
    - `np.log(Close1)`, `np.log(Close2)`, `np.log(Value1)`, `np.log(Value2)`
    - `Close1.diff()`, `Close2.diff()`
