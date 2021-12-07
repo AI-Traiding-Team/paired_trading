@@ -1,7 +1,6 @@
 import os
 import sys
 import datetime
-import numpy as np
 import pandas as pd
 import itertools
 import matplotlib.pyplot as plt
@@ -9,12 +8,14 @@ import matplotlib.pyplot as plt
 from typing import Tuple
 from dataclasses import dataclass
 
-__version__ = 0.0008
+__version__ = 0.0009
+
 
 @dataclass
 class TradeConstants:
     time_intervals = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
-    binsizes = {'1m': 1, '3m': 3, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '2h': 120, '4h': 240, '6h': 360, '8h': 480, '12h': 720,
+    binsizes = {'1m': 1, '3m': 3, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '2h': 120, '4h': 240, '6h': 360, '8h': 480,
+                '12h': 720,
                 '1d': 1440, '3d': 4320, '1w': 10080}
     default_datetime_format: str = "%Y-%m-%d %H:%M:%S"
     ohlcv_cols: Tuple = ('datetime',
@@ -149,7 +150,8 @@ class DataLoad(object):
         for timeframe in self.time_intervals:
             for symbol in self.pairs_symbols:
                 ohlcv_df = self.ohlcvbase[f"{symbol}-{timeframe}"].df.copy()
-                normalized_df = (ohlcv_df[usecol] - ohlcv_df[usecol].min()) / (ohlcv_df[usecol].max() - ohlcv_df[usecol].min())
+                normalized_df = (ohlcv_df[usecol] - ohlcv_df[usecol].min()) / (
+                            ohlcv_df[usecol].max() - ohlcv_df[usecol].min())
                 plt.plot(normalized_df,
                          label=f"{symbol}-{timeframe}")
         plt.legend()
@@ -173,9 +175,9 @@ class DataLoad(object):
                     ohlcv_df_1 = self.ohlcvbase[f"{symbols_combo[0]}-{timeframe}"].df.copy()
                     ohlcv_df_2 = self.ohlcvbase[f"{symbols_combo[1]}-{timeframe}"].df.copy()
                     normalized_df_1 = (ohlcv_df_1[usecol] - ohlcv_df_1[usecol].min()) / (
-                                ohlcv_df_1[usecol].max() - ohlcv_df_1[usecol].min())
+                            ohlcv_df_1[usecol].max() - ohlcv_df_1[usecol].min())
                     normalized_df_2 = (ohlcv_df_2[usecol] - ohlcv_df_2[usecol].min()) / (
-                                ohlcv_df_2[usecol].max() - ohlcv_df_2[usecol].min())
+                            ohlcv_df_2[usecol].max() - ohlcv_df_2[usecol].min())
                     diff_df = normalized_df_1 - normalized_df_2
                     plt.plot(diff_df, label=f"{symbols_combo[0]}-{symbols_combo[1]}-{timeframe}")
                 plt.legend()
@@ -187,39 +189,55 @@ class DataLoad(object):
                     plt.show()
         pass
 
-    # def show_histogram_diff(self, usecol='close', savepath: str = None):
-    #     symbols_combo_list = [elem for elem in itertools.combinations(self.pairs_symbols, 2)]
-    #     for symbols_combo in symbols_combo_list:
-    #         for timeframe in self.time_intervals:
-    #             plt.figure(figsize=(45, 18))
-    #             # Don't allow the axis to be on top of your data
-    #             # plt.set_axisbelow(True)
-    #             # Turn on the minor TICKS, which are required for the minor GRID
-    #             plt.minorticks_on()
-    #             # Customize the major grid
-    #             plt.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
-    #             # Customize the minor grid
-    #             plt.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-    #             for symbol in symbols_combo:
-    #                 ohlcv_df_1 = self.ohlcvbase[f"{symbols_combo[0]}-{timeframe}"].df.copy()
-    #                 ohlcv_df_2 = self.ohlcvbase[f"{symbols_combo[1]}-{timeframe}"].df.copy()
-    #                 normalized_df_1 = (ohlcv_df_1[usecol] - ohlcv_df_1[usecol].min()) / (
-    #                             ohlcv_df_1[usecol].max() - ohlcv_df_1[usecol].min())
-    #                 normalized_df_2 = (ohlcv_df_2[usecol] - ohlcv_df_2[usecol].min()) / (
-    #                             ohlcv_df_2[usecol].max() - ohlcv_df_2[usecol].min())
-    #                 diff_df = normalized_df_1 - normalized_df_2
-    #                 diff_df
-    #                 plt.plot(diff_df, label=f"{symbols_combo[0]}-{symbols_combo[1]}-{timeframe}")
-    #             plt.legend()
-    #             if savepath is None:
-    #                 plt.show()
-    #             else:
-    #                 path_filename = os.path.join(savepath, f"{symbols_combo[0]}-{symbols_combo[1]}-{timeframe}.png")
-    #                 plt.savefig(path_filename)
-    #                 plt.show()
-    #     pass
+    """
+    0. Берем модули отклонений
+    1. Размечает все что по модулю меньше комиссии как 0
+    2. Считаем число того, что не 0
+    3. Считаем среднюю того что не 0
+    4. Строим таблицу
+    5. Можно боксплоты построить, но можно и не строить
+    """
 
+    def diff_calculation(self, usecol: str = "close", commission: float = 0.1):
+        result_df = pd.DataFrame(columns=["#",
+                                          "pair_1",
+                                          "pair_2",
+                                          "commission",
+                                          "(diff-comm).abs().sum()",
+                                          "(diff-comm).abs().mean()",
+                                          "(diff-comm).sum()",
+                                          "(diff-comm).mean()"
+                                          ])
 
+        symbols_combo_list = [elem for elem in itertools.combinations(self.pairs_symbols, 2)]
+        for idx, symbols_combo in enumerate(symbols_combo_list):
+            for timeframe in self.time_intervals:
+                ohlcv_df_1 = self.ohlcvbase[f"{symbols_combo[0]}-{timeframe}"].df.copy()
+                ohlcv_df_2 = self.ohlcvbase[f"{symbols_combo[1]}-{timeframe}"].df.copy()
+                normalized_df_1 = (ohlcv_df_1[usecol] - ohlcv_df_1[usecol].min()) / (
+                        ohlcv_df_1[usecol].max() - ohlcv_df_1[usecol].min())
+                normalized_df_2 = (ohlcv_df_2[usecol] - ohlcv_df_2[usecol].min()) / (
+                        ohlcv_df_2[usecol].max() - ohlcv_df_2[usecol].min())
+                diff_df = normalized_df_1 - normalized_df_2
+                diff_df = pd.DataFrame(diff_df)
+                diff_df.loc[(diff_df['close'] <= commission) & (diff_df['close'] >= -commission)] = 0
+                diff_abs_sum = diff_df.abs().sum()
+                diff_abs_mean = diff_df.abs().mean()
+                diff_sum = diff_df.sum()
+                diff_mean = diff_df.mean()
+                result_df = result_df.append({"#": idx + 1,
+                                              "pair_1": f"{symbols_combo[0]}-{timeframe}",
+                                              "pair_2": f"{symbols_combo[1]}-{timeframe}",
+                                              "commission": commission,
+                                              "(diff-comm).abs().sum()": float(diff_abs_sum),
+                                              "(diff-comm).abs().mean()": float(diff_abs_mean),
+                                              "(diff-comm).sum()": float(diff_sum),
+                                              "(diff-comm).mean()": float(diff_mean),
+                                              },
+                                             ignore_index=True
+                                             )
+        print(result_df.to_string())
+        pass
 
     @staticmethod
     def create_cuts_from_data(source_directory,
@@ -269,9 +287,8 @@ if __name__ == '__main__':
                         end_period='2021-12-06 23:59:59'
                         )
     # database.show_all_data()
-    database.show_combinations_diff(savepath="/home/cubecloud/Python/projects/paired_trading/analyze/pics")
-
-
+    # database.show_combinations_diff(savepath="/home/cubecloud/Python/projects/paired_trading/analyze/pics")
+    database.diff_calculation()
 
     # DataLoad.create_cuts_from_data("/home/cubecloud/Python/projects/sunday_data/pairs_data/",
     #                                "/home/cubecloud/Python/projects/paired_trading/source_root",
