@@ -1,2 +1,2 @@
 # paired_trading
-Crypto currency paired trading project fot Fintech Hack
+Crypto currency paired trading project fot FinTech Hack
