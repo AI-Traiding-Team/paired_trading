@@ -53,7 +53,7 @@ https://apptractor.ru/develop/user-story-plan-deystviy-dlya-razrabotchika.html
    
 - `Close1`, `Close2`, `Value1`, `Value2`
 - `Close1 - Close2`
-- `np.log(Close1)`, `np.log(Close2)`, `np.log(Value1)`, `np.log(Value2)`
+- `np.log(Close1)`, `np.log(Close2)`, `np.log(Volume1)`, `np.log(Volume2)`
 - `Close1.diff()`, `Close2.diff()`
 - относительные изменения к предыдущему дню c логарифмированием 
 `np.log((Close1)/(Close1.shift(1)))`, `np.log((Close2)/(Close2.shift(1)))`
