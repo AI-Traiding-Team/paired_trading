@@ -69,7 +69,7 @@ def get_classification_model(batch_shape=(0, 299, 299, 3),
     new_model.compile(optimizer=optimizer,
                       loss='binary_crossentropy',
                       metrics=['accuracy'],
-                     )
+                      )
     return new_model
 
 
