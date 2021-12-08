@@ -163,7 +163,7 @@ class DataLoad(object):
                             self.pairs_symbols.append(split_file_name[0])
                         file_list['interval'].append(dir_name)
                         file_list['pair'].append(split_file_name[0])
-                        file_list['file_name'].append(file)
+                        file_list['file_name'].append(os.path.join(dir_name, file))
                     else:
                         is_in_pairs = False
                         for pair in self.pairs_symbols:
@@ -171,7 +171,7 @@ class DataLoad(object):
                         if is_in_pairs:
                             file_list['interval'].append(dir_name)
                             file_list['pair'].append(pair)
-                            file_list['file_name'].append(file)
+                            file_list['file_name'].append(os.path.join(dir_name, file))
         # or take files from root dir
         else:
             for file in os.listdir(self.source_directory):
@@ -185,12 +185,12 @@ class DataLoad(object):
                             self.time_intervals.append(split_file_name[1])
                         file_list['interval'].append(split_file_name[1])
                         file_list['pair'].append(split_file_name[0])
-                        file_list['file_name'].append(file)
+                        file_list['file_name'].append(os.path.join(self.source_directory, file))
                     else:
                         if split_file_name[1] in self.time_intervals:
                             file_list['interval'].append(split_file_name[1])
                             file_list['pair'].append(split_file_name[0])
-                            file_list['file_name'].append(file)
+                            file_list['file_name'].append(os.path.join(self.source_directory, file))
                 else:
                     for pair in self.pairs_symbols:
                         if file.startswith(pair):
@@ -200,12 +200,12 @@ class DataLoad(object):
                                     self.time_intervals.append(split_file_name[1])
                                 file_list['interval'].append(split_file_name[1])
                                 file_list['pair'].append(pair)
-                                file_list['file_name'].append(file)
+                                file_list['file_name'].append(os.path.join(self.source_directory, file))
                             else:
                                 if split_file_name[1] in self.time_intervals:
                                     file_list['interval'].append(split_file_name[1])
                                     file_list['pair'].append(pair)
-                                    file_list['file_name'].append(file)
+                                    file_list['file_name'].append(os.path.join(self.source_directory, file))
         print(file_list)
 
         for index in range(len(file_list['file_name'])):
