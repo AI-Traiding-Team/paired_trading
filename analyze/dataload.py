@@ -10,7 +10,7 @@ import numpy as np
 from typing import Tuple
 from dataclasses import dataclass
 
-__version__ = 0.0011
+__version__ = 0.0012
 
 
 @dataclass
@@ -154,7 +154,7 @@ class DataLoad(object):
         file_list = {'interval': list(),
                      'pair': list(),
                      'file_name': list()}
-        # if don't have custom interval list chek by all interval list
+        # if don't have custom interval list check by all interval list
         no_intervals = False
         if self.time_intervals is None:
             no_intervals = True
@@ -237,9 +237,9 @@ class DataLoad(object):
             if (self.start_period is not None) and (self.end_period is not None):
                 ohlcv.set_period(self.start_period, self.end_period)
             self.ohlcvbase.update({f"{file_list['pair'][index]}-{file_list['interval'][index]}": ohlcv})
+        pass
 
-
-
+class Analyze(DataLoad):
     def show_all_data(self, usecol='close'):
         plt.figure(figsize=(45, 18))
         # Don't allow the axis to be on top of your data
@@ -308,6 +308,8 @@ class DataLoad(object):
        # correlation_matrix = np.corrcoef(data, data)
        # sns.heatmap(correlation_matrix, center=0, vmin=0, vmax=1)
         pass
+
+
     """
     0. Берем модули отклонений
     1. Размечает все что по модулю меньше комиссии как 0
@@ -316,7 +318,6 @@ class DataLoad(object):
     4. Строим таблицу
     5. Можно боксплоты построить, но можно и не строить
     """
-
     def diff_calculation(self, usecol: str = "close", commission: float = 0.1):
         result_df = pd.DataFrame(columns=["#",
                                           "pair_1",
@@ -398,19 +399,19 @@ if __name__ == '__main__':
     #      "DOGEUSDT",
     #      # "AVAXUSDT"
    # ]
-    intervals = ['15m']
 
-    database = DataLoad(pairs_symbols=pairs,
-                        time_intervals=intervals,
-                        source_directory="../source_root",
-                        start_period='2021-09-01 00:00:00',
-                        end_period='2021-12-05 23:59:59'
-                        )
-    # database.show_all_data()
-    # database.show_combinations_diff(savepath="/home/cubecloud/Python/projects/paired_trading/analyze/pics")
-    #database.diff_calculation()
-    database.show_correlation()
-    # DataLoad.create_cuts_from_data("/home/cubecloud/Python/projects/sunday_data/pairs_data/",
+    intervals = ['15m']
+    show_data = Analyze(pairs_symbols=pairs,
+                       time_intervals=intervals,
+                       source_directory="../source_root",
+                       start_period='2021-09-01 00:00:00',
+                       end_period='2021-12-05 23:59:59'
+                       )
+    # show_data.show_all_data()
+    # show_data.show_combinations_diff(savepath="/home/cubecloud/Python/projects/paired_trading/analyze/pics")
+    #show_data.diff_calculation()
+    show_data.show_correlation()
+    # Analyze.create_cuts_from_data("/home/cubecloud/Python/projects/sunday_data/pairs_data/",
     #                                "/home/cubecloud/Python/projects/paired_trading/source_root",
     #                                pairs,
     #                                intervals,
