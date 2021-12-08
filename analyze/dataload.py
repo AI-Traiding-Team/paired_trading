@@ -10,7 +10,7 @@ import numpy as np
 from typing import Tuple
 from dataclasses import dataclass
 
-__version__ = 0.0010
+__version__ = 0.0011
 
 
 @dataclass
@@ -93,6 +93,21 @@ class OHLCVData:
                 self.load()
         self.df = self.df.loc[(self.df.index >= self.start_datetime) & (self.df.index <= self.end_datetime)]
         # print(self.df.head().to_string())
+        pass
+
+    @staticmethod
+    def get_bad_idxs(ctrl_df, df):
+        _df = pd.concat([ctrl_df, df], axis=1)
+        _mask = _df['datetime'].isna()
+        _indexes = _df[_mask].index.to_list()
+        _indexes = [idx.to_pydatetime() for idx in _indexes]
+        return _indexes
+
+    @staticmethod
+    def control_datetime_index(start_datetime, end_datetime, timeframe, ):
+        interval = pd.date_range(start_datetime, end_datetime, freq='H')
+        control_df = pd.DataFrame()
+        control_df.index = interval
         pass
 
     def load(self):
@@ -284,7 +299,7 @@ class DataLoad(object):
         data = list()
         print()
         for name, ohlcv_obj in self.ohlcvbase.items():
-            data_arr = ohlcv_obj.df[usecol].values()
+            data_arr = ohlcv_obj.df[usecol].values
             data.append(data_arr)
 
                 #data_df[name] = ohlcv_obj.df[usecol].copy()
@@ -389,7 +404,7 @@ if __name__ == '__main__':
                         time_intervals=intervals,
                         source_directory="../source_root",
                         start_period='2021-09-01 00:00:00',
-                        end_period='2021-12-06 23:59:59'
+                        end_period='2021-12-05 23:59:59'
                         )
     # database.show_all_data()
     # database.show_combinations_diff(savepath="/home/cubecloud/Python/projects/paired_trading/analyze/pics")
