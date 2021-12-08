@@ -4,6 +4,8 @@ import datetime
 import pandas as pd
 import itertools
 import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
 
 from typing import Tuple
 from dataclasses import dataclass
@@ -100,6 +102,8 @@ class OHLCVData:
                               usecols=self.ohlcv_cols,
                               dtype=self.ohlcv_dtypes)
         self.df.index, self.df.index.name = pd.to_datetime(self.df['datetime']), 'datetimeindex'
+        if not pd.Index(self.df.index).is_monotonic_increasing:
+            sys.exit('ERROR DataFrame index is not monotonic!')
         self.df = self.df.drop(columns=['datetime'])
         self.df_starts: datetime = self.df.index[0]
         self.df_ends: datetime = self.df.index[-1]
@@ -134,7 +138,7 @@ class DataLoad(object):
                      'file_name': list()}
         # if don't have custom interval list chek by all interval list
         no_intervals = False
-        if self.pairs_symbols is None:
+        if self.time_intervals is None:
             no_intervals = True
             self.time_intervals = []
         # if have dirs in root dir check files just in dirs
@@ -156,14 +160,15 @@ class DataLoad(object):
         # if dirs exists and in dirs have files work with them or take files from root dir
         if len(dir_list) != 0:
             for dir_name in dir_list:
-                for file in os.listdir(os.path.join( self.source_directory, dir_name)):
+                full_dir_name = os.path.join(self.source_directory, dir_name)
+                for file in os.listdir(full_dir_name):
                     if no_pairs_symbols:          # if don't have custom pairs list take all names from file
                         split_file_name = file.split('-')   # name split by '-'
                         if split_file_name[0] not in self.pairs_symbols:
                             self.pairs_symbols.append(split_file_name[0])
                         file_list['interval'].append(dir_name)
                         file_list['pair'].append(split_file_name[0])
-                        file_list['file_name'].append(os.path.join(dir_name, file))
+                        file_list['file_name'].append(os.path.join(full_dir_name, file))
                     else:
                         is_in_pairs = False
                         for pair in self.pairs_symbols:
@@ -171,7 +176,7 @@ class DataLoad(object):
                         if is_in_pairs:
                             file_list['interval'].append(dir_name)
                             file_list['pair'].append(pair)
-                            file_list['file_name'].append(os.path.join(dir_name, file))
+                            file_list['file_name'].append(os.path.join(full_dir_name, file))
         # or take files from root dir
         else:
             for file in os.listdir(self.source_directory):
@@ -269,6 +274,20 @@ class DataLoad(object):
                     plt.show()
         pass
 
+    def show_correlation(self, usecol='close', time_frame='15m'):
+        data_df = pd.DataFrame()
+        data = list()
+        print()
+        for name, ohlcv_obj in self.ohlcvbase.items():
+            data_arr = ohlcv_obj.df[usecol].values()
+            data.append(data_arr)
+
+                #data_df[name] = ohlcv_obj.df[usecol].copy()
+        #dv = data_df.values
+        print()
+       # correlation_matrix = np.corrcoef(data, data)
+       # sns.heatmap(correlation_matrix, center=0, vmin=0, vmax=1)
+        pass
     """
     0. Берем модули отклонений
     1. Размечает все что по модулю меньше комиссии как 0
@@ -359,7 +378,7 @@ if __name__ == '__main__':
     #      "DOGEUSDT",
     #      # "AVAXUSDT"
    # ]
-    intervals = None#['1m']
+    intervals = ['15m']
 
     database = DataLoad(pairs_symbols=pairs,
                         time_intervals=intervals,
@@ -369,8 +388,8 @@ if __name__ == '__main__':
                         )
     # database.show_all_data()
     # database.show_combinations_diff(savepath="/home/cubecloud/Python/projects/paired_trading/analyze/pics")
-    database.diff_calculation()
-
+    #database.diff_calculation()
+    database.show_correlation()
     # DataLoad.create_cuts_from_data("/home/cubecloud/Python/projects/sunday_data/pairs_data/",
     #                                "/home/cubecloud/Python/projects/paired_trading/source_root",
     #                                pairs,
