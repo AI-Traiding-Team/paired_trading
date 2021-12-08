@@ -19,10 +19,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
 
-__version__ = 0.001
 
-DEV: str
-DEV_DATA: str
+__version__ = 0.0001
 
 
 def get_local_timezone_name():
@@ -35,34 +33,6 @@ def get_local_timezone_name():
     if offset_hour > 0:
         offset_hour_msg = f"+{offset_hour:.0f}"
     return f'Etc/GMT{offset_hour_msg}'
-
-
-# noinspection PyStatementEffect,PyUnresolvedReferences
-def prepare_dev_stationary():
-    import os
-    import sys
-    global DEV
-    global DEV_DATA
-    try:
-        test_ipython = str(get_ipython())
-    except NameError:
-        print('Running on local environment')
-        DEV = os.getcwd()
-    else:
-        if 'google.colab' in test_ipython:
-            print('Running on CoLab')
-            from google.colab import drive
-            drive.mount('/content/drive')
-            os.system(cmd)
-            DEV = '/content/drive/MyDrive/Python/paired_trading'
-        elif 'ipykernel' in test_ipython:
-            print('Running on Jupyter Notebook')
-            DEV = os.getcwd()
-    sys.path.append(DEV)
-    path_head = os.path.split(DEV)[0]
-    DEV_DATA = os.path.join(path_head, '/paired_data/')
-    pass
-
 
 class TSDataGenerator(TimeseriesGenerator):
     def __init__(self, data, targets, length, sampling_rate=1, stride=1, start_index=0, overlap=0, end_index=None,
@@ -116,4 +86,3 @@ class TSDataGenerator(TimeseriesGenerator):
         if self.reverse:
             return samples[:, ::-1, ...], targets
         return samples, targets
-
