@@ -5,7 +5,7 @@ import pandas as pd
 from analyze.dataload import DataLoad, TradeConstants
 sys.path.insert(1, os.path.join(os.getcwd(), 'analyze'))
 
-__version__ = 0.0003
+__version__ = 0.0004
 
 
 class FeaturesData:
@@ -14,7 +14,8 @@ class FeaturesData:
         self.ohlcv_base = self.loader.ohlcvbase
         self.pairs_symbols = self.loader.pairs_symbols
         self.time_intervals = self.loader.time_intervals
-        self.features_base: dict = {}
+        """ Base is not realized yet """
+        # self.features_base: dict = {}
         self.cols_create = ('year',
                             'quarter',
                             'month',
@@ -136,5 +137,11 @@ class FeaturesData:
         features_df["log_close1_close_shift2"] = source_df_2["close"]/shift_df2
         features_df["sin_close1"] = np.sin(source_df_1['close'])
         features_df["sin_close2"] = np.sin(source_df_2['close'])
-        pass
+        return features_df
+
+
+if __name__ == "main":
+    fd = FeaturesData("/source_root")
+    x_df = fd.collect_features("ETHUSDT", "BTCUSDT", "1m")
+
 
