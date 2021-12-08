@@ -4,6 +4,8 @@ import datetime
 import pandas as pd
 import itertools
 import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
 
 from typing import Tuple
 from dataclasses import dataclass
@@ -100,6 +102,8 @@ class OHLCVData:
                               usecols=self.ohlcv_cols,
                               dtype=self.ohlcv_dtypes)
         self.df.index, self.df.index.name = pd.to_datetime(self.df['datetime']), 'datetimeindex'
+        if not pd.Index(self.df.index).is_monotonic_increasing:
+            sys.exit('ERROR DataFrame index is not monotonic!')
         self.df = self.df.drop(columns=['datetime'])
         self.df_starts: datetime = self.df.index[0]
         self.df_ends: datetime = self.df.index[-1]
@@ -112,9 +116,9 @@ class OHLCVData:
 
 class DataLoad(object):
     def __init__(self,
-                 pairs_symbols: list,
-                 time_intervals: list,
                  source_directory,
+                 pairs_symbols: list = None,
+                 time_intervals: list = None,
                  start_period: str = None,
                  end_period: str = None,
                  ):
@@ -131,14 +135,95 @@ class DataLoad(object):
         return self.ohlcvbase[f'{pair_symbols}-{time_intervals}'].df
 
     def get_all_data(self):
-        for timeframe in self.time_intervals:
-            for symbol in self.pairs_symbols:
-                source_filename = f'{symbol}-{timeframe}-data.csv'
-                source_path_filename = os.path.join(self.source_directory, source_filename)
-                ohlcv = OHLCVData(source_path_filename)
-                if (self.start_period is not None) and (self.end_period is not None):
-                    ohlcv.set_period(self.start_period, self.end_period)
-                self.ohlcvbase.update({f"{symbol}-{timeframe}": ohlcv})
+        dir_list = list()
+        file_list = {'interval': list(),
+                     'pair': list(),
+                     'file_name': list()}
+        # if don't have custom interval list chek by all interval list
+        no_intervals = False
+        if self.time_intervals is None:
+            no_intervals = True
+            self.time_intervals = []
+        # if have dirs in root dir check files just in dirs
+        for _, dirs, _ in os.walk(self.source_directory, topdown=True):
+            for dir_name in dirs:
+                if no_intervals:
+                    self.time_intervals.append(dir_name)
+                    dir_list.append(dir_name)
+                else:
+                    if dir_name in self.time_intervals:
+                        dir_list.append(dir_name)
+
+        # If pairs list is empty will collect pairs in list
+        no_pairs_symbols = False
+        if self.pairs_symbols is None:
+            no_pairs_symbols = True
+            self.pairs_symbols = []
+
+        # if dirs exists and in dirs have files work with them or take files from root dir
+        if len(dir_list) != 0:
+            for dir_name in dir_list:
+                full_dir_name = os.path.join(self.source_directory, dir_name)
+                for file in os.listdir(full_dir_name):
+                    if no_pairs_symbols:          # if don't have custom pairs list take all names from file
+                        split_file_name = file.split('-')   # name split by '-'
+                        if split_file_name[0] not in self.pairs_symbols:
+                            self.pairs_symbols.append(split_file_name[0])
+                        file_list['interval'].append(dir_name)
+                        file_list['pair'].append(split_file_name[0])
+                        file_list['file_name'].append(os.path.join(full_dir_name, file))
+                    else:
+                        is_in_pairs = False
+                        for pair in self.pairs_symbols:
+                            is_in_pairs |= file.startswith(pair)
+                        if is_in_pairs:
+                            file_list['interval'].append(dir_name)
+                            file_list['pair'].append(pair)
+                            file_list['file_name'].append(os.path.join(full_dir_name, file))
+        # or take files from root dir
+        else:
+            for file in os.listdir(self.source_directory):
+                print(file)
+                if no_pairs_symbols:
+                    split_file_name = file.split('-')
+                    if split_file_name[0] not in self.pairs_symbols:
+                        self.pairs_symbols.append(split_file_name[0])
+                    if no_intervals:
+                        if split_file_name[1] not in self.time_intervals:
+                            self.time_intervals.append(split_file_name[1])
+                        file_list['interval'].append(split_file_name[1])
+                        file_list['pair'].append(split_file_name[0])
+                        file_list['file_name'].append(os.path.join(self.source_directory, file))
+                    else:
+                        if split_file_name[1] in self.time_intervals:
+                            file_list['interval'].append(split_file_name[1])
+                            file_list['pair'].append(split_file_name[0])
+                            file_list['file_name'].append(os.path.join(self.source_directory, file))
+                else:
+                    for pair in self.pairs_symbols:
+                        if file.startswith(pair):
+                            split_file_name = file.split('-')
+                            if no_intervals:
+                                if split_file_name[1] not in self.time_intervals:
+                                    self.time_intervals.append(split_file_name[1])
+                                file_list['interval'].append(split_file_name[1])
+                                file_list['pair'].append(pair)
+                                file_list['file_name'].append(os.path.join(self.source_directory, file))
+                            else:
+                                if split_file_name[1] in self.time_intervals:
+                                    file_list['interval'].append(split_file_name[1])
+                                    file_list['pair'].append(pair)
+                                    file_list['file_name'].append(os.path.join(self.source_directory, file))
+        print(file_list)
+
+        for index in range(len(file_list['file_name'])):
+            source_path_filename = os.path.join(self.source_directory, file_list['file_name'][index])
+            ohlcv = OHLCVData(source_path_filename)
+            if (self.start_period is not None) and (self.end_period is not None):
+                ohlcv.set_period(self.start_period, self.end_period)
+            self.ohlcvbase.update({f"{file_list['pair'][index]}-{file_list['interval'][index]}": ohlcv})
+
+
 
     def show_all_data(self, usecol='close'):
         plt.figure(figsize=(45, 18))
@@ -194,6 +279,20 @@ class DataLoad(object):
                     plt.show()
         pass
 
+    def show_correlation(self, usecol='close', time_frame='15m'):
+        data_df = pd.DataFrame()
+        data = list()
+        print()
+        for name, ohlcv_obj in self.ohlcvbase.items():
+            data_arr = ohlcv_obj.df[usecol].values()
+            data.append(data_arr)
+
+                #data_df[name] = ohlcv_obj.df[usecol].copy()
+        #dv = data_df.values
+        print()
+       # correlation_matrix = np.corrcoef(data, data)
+       # sns.heatmap(correlation_matrix, center=0, vmin=0, vmax=1)
+        pass
     """
     0. Берем модули отклонений
     1. Размечает все что по модулю меньше комиссии как 0
@@ -271,31 +370,31 @@ if __name__ == '__main__':
     w/o stable crypto coin USDT (TOP #3),  
     The of DOGE TOP #11 and AVAX TOP #12 have very close positions 2021/12/07 
     """
-    pairs = [
-             "BTCUSDT",
-             "ETHUSDT",
-             "BNBUSDT",
-             "SOLUSDT",
-             "ADAUSDT",
-             "USDCUSDT",
-             "XRPUSDT",
-             "DOTUSDT",
-             "LUNAUSDT",
-             "DOGEUSDT",
-             # "AVAXUSDT"
-             ]
-    intervals = ['1m']
+    pairs = None
+    # ["BTCUSDT",
+    #      "ETHUSDT",
+    #      "BNBUSDT",
+    #      "SOLUSDT",
+    #      "ADAUSDT",
+    #      "USDCUSDT",
+    #      "XRPUSDT",
+    #      "DOTUSDT",
+    #      "LUNAUSDT",
+    #      "DOGEUSDT",
+    #      # "AVAXUSDT"
+   # ]
+    intervals = ['15m']
 
     database = DataLoad(pairs_symbols=pairs,
                         time_intervals=intervals,
-                        source_directory="/home/cubecloud/Python/projects/sunday_data/pairs_data/",
+                        source_directory="../source_root",
                         start_period='2021-09-01 00:00:00',
                         end_period='2021-12-06 23:59:59'
                         )
     # database.show_all_data()
     # database.show_combinations_diff(savepath="/home/cubecloud/Python/projects/paired_trading/analyze/pics")
-    database.diff_calculation()
-
+    #database.diff_calculation()
+    database.show_correlation()
     # DataLoad.create_cuts_from_data("/home/cubecloud/Python/projects/sunday_data/pairs_data/",
     #                                "/home/cubecloud/Python/projects/paired_trading/source_root",
     #                                pairs,
