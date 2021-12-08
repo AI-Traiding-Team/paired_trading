@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from typing import Tuple
 from dataclasses import dataclass
 
-__version__ = 0.0009
+__version__ = 0.0010
 
 
 @dataclass
@@ -171,15 +171,17 @@ class DataLoad(object):
                 plt.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
                 # Customize the minor grid
                 plt.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-                for symbol in symbols_combo:
-                    ohlcv_df_1 = self.ohlcvbase[f"{symbols_combo[0]}-{timeframe}"].df.copy()
-                    ohlcv_df_2 = self.ohlcvbase[f"{symbols_combo[1]}-{timeframe}"].df.copy()
-                    normalized_df_1 = (ohlcv_df_1[usecol] - ohlcv_df_1[usecol].min()) / (
-                            ohlcv_df_1[usecol].max() - ohlcv_df_1[usecol].min())
-                    normalized_df_2 = (ohlcv_df_2[usecol] - ohlcv_df_2[usecol].min()) / (
-                            ohlcv_df_2[usecol].max() - ohlcv_df_2[usecol].min())
-                    diff_df = normalized_df_1 - normalized_df_2
-                    plt.plot(diff_df, label=f"{symbols_combo[0]}-{symbols_combo[1]}-{timeframe}")
+                # for symbol in symbols_combo:
+
+                ohlcv_df_1 = self.ohlcvbase[f"{symbols_combo[0]}-{timeframe}"].df.copy()
+                ohlcv_df_2 = self.ohlcvbase[f"{symbols_combo[1]}-{timeframe}"].df.copy()
+                normalized_df_1 = (ohlcv_df_1[usecol] - ohlcv_df_1[usecol].min()) / (
+                        ohlcv_df_1[usecol].max() - ohlcv_df_1[usecol].min())
+                normalized_df_2 = (ohlcv_df_2[usecol] - ohlcv_df_2[usecol].min()) / (
+                        ohlcv_df_2[usecol].max() - ohlcv_df_2[usecol].min())
+                diff_df = normalized_df_1 - normalized_df_2
+                plt.plot(diff_df, label=f"{symbols_combo[0]}-{symbols_combo[1]}-{timeframe}")
+
                 plt.legend()
                 if savepath is None:
                     plt.show()
@@ -266,7 +268,8 @@ if __name__ == '__main__':
     w/o stable crypto coin USDT (TOP #3),  
     The of DOGE TOP #11 and AVAX TOP #12 have very close positions 2021/12/07 
     """
-    pairs = ["BTCUSDT",
+    pairs = [
+             "BTCUSDT",
              "ETHUSDT",
              "BNBUSDT",
              "SOLUSDT",
