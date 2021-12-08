@@ -127,6 +127,9 @@ class DataLoad(object):
         self.get_all_data()
         pass
 
+    def get_pair(self, pair_symbols, time_intervals):
+        return self.ohlcvbase[f'{pair_symbols}-{time_intervals}'].df
+
     def get_all_data(self):
         for timeframe in self.time_intervals:
             for symbol in self.pairs_symbols:
