@@ -1,6 +1,7 @@
 import os
 import sys
 from typing import Tuple
+import matplotlib.pyplot as plt
 
 import numpy as np
 import tensorflow as tf
@@ -147,8 +148,6 @@ class MainNN:
         self.predict = np.array()
         self.keras_model = tf.keras.models.Model
         self.optimizer = None
-        if os.path.exists(file_name):
-            self.keras_model.load_weights(file_name)
 
     def set_model(self):
         if self.nn_profile.optimizer =='Adam':
@@ -191,6 +190,25 @@ class MainNN:
 
     def get_predict(self, dataset: DataSet):
         self.predict = self.keras_model.predict(dataset.test_gen)
+
+        # plt.minorticks_on()
+        # # Customize the major grid
+        # plt.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+        # # Customize the minor grid
+        # plt.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+        # # for symbol in symbols_combo:
+        #
+        # dif = self.predict - dataset.y_Test
+        # plt.plot(diff_df, label="График отклонения предсказания от реальных данных")
+        #
+        # plt.legend()
+        # if savepath is None:
+        #     plt.show()
+        # else:
+        #     path_filename = os.path.join(savepath, f"{symbols_combo[0]}-{symbols_combo[1]}-{timeframe}.png")
+        #     plt.savefig(path_filename)
+        #     plt.show()
+
         print(self.predict)
         pass
 
