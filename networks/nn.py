@@ -101,11 +101,13 @@ class NNProfile:
             cls.loss = "mse"
         elif model_type == "binary_crossentropy":
             cls.model_type = model_type
+            cls.num_classes = 2
             cls.metric = 'accuracy'
             cls.loss = "binary_crossentropy"
         elif model_type == "categorical_crossentropy":
             cls.model_type = model_type
             cls.metric = 'accuracy'
+            cls.num_classes = 5
             cls.loss = "categorical_crossentropy"
         pass
 
@@ -156,7 +158,7 @@ class MainNN:
 
         if model_type == 'regression':
             x_out = Dense(1, activation='linear')(x)
-        elif model_type == "binary_classification":
+        elif model_type == "binary_crossentropy":
             x_out = Dense(1, activation='sigmoid')(x)
         elif model_type == "classification":
             x_out = Dense(num_classes, activation='softmax')(x)
@@ -170,9 +172,10 @@ class MainNN:
             self.keras_model = self.get_resnet1d_model(input_shape=self.input_shape,
                                                       num_classes=self.nn_profile.num_classes
                                                       )
+
             self.keras_model.compile(optimizer=self.optimizer,
-                                     loss='mse',
-                                     metrics=['mae'],
+                                     loss=self.nn_profile.loss,
+                                     metrics=[self.nn_profile.metric],
                                      )
         pass
 
@@ -180,8 +183,9 @@ class MainNN:
         self.dataset = dataset
         self.input_shape = dataset.input_shape
         self.set_model()
+        path_filename = os.path.join(os.getcwd(), 'networks/outputs', f"{self.nn_profile.experiment_name}_NN.png")
         tf.keras.utils.plot_model(self.keras_model,
-                                  to_file=f'outputs/{self.nn_profile.experiment_name}_NN.png',
+                                  to_file=path_filename,
                                   show_shapes=True,
                                   show_layer_names=True,
                                   expand_nested=True,
@@ -192,17 +196,19 @@ class MainNN:
                                             validation_data=dataset.val_gen,
                                             verbose=self.nn_profile.verbose,
                                             )
-        self.keras_model.save(os.path.join('outputs/', f"{self.nn_profile.experiment_name}.h5"))
+        path_filename = os.path.join(os.getcwd(), 'networks/outputs', f"{self.nn_profile.experiment_name}.h5")
+        self.keras_model.save(path_filename)
         pass
 
     def get_predict(self):
         self.x_Test = self.dataset.x_Test
         self.y_Test = self.dataset.y_Test
-        tf.keras.models.load_model(os.path.join('outputs/', f"{self.nn_profile.experiment_name}.h5"))
+        path_filename = os.path.join(os.getcwd(), 'networks/outputs', f"{self.nn_profile.experiment_name}.h5")
+        tf.keras.models.load_model(path_filename)
         self.y_Pred = self.keras_model.predict(self.x_Test)
         return self.y_Pred
 
-    def figshow(self, y_pred, y_true, delta):
+    def figshow_regression(self, y_pred, y_true, delta):
         fig = plt.figure(figsize=(26, 7))
         sns.set_style("white")
         ax1 = fig.add_subplot(1, 3, 1)
@@ -226,6 +232,7 @@ class MainNN:
             lr_list = [x * 1000 for x in self.history.history["lr"]]
             plt.plot(N, lr_list, linestyle=':', color='green', label="lr * 1000")
         plt.title(f"Training Loss and Mean Absolute Error")
+        plt.legend()
         ax2 = fig.add_subplot(1, 3, 2)
         ax2.set_axisbelow(True)
         ax2.minorticks_on()
@@ -234,13 +241,14 @@ class MainNN:
         plt.plot(y_pred, linestyle='--', color='red', label="Prediction")
         plt.plot(y_true, linestyle='--', color='blue', label="True")
         plt.title(f"Prediction and True ")
+        plt.legend()
         ax3 = fig.add_subplot(1, 3, 3)
         ax3.set_axisbelow(True)
         ax3.minorticks_on()
         ax3.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
         ax3.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
         # plt.plot(delta*100, linestyle='--', color='green', label="Delta percentage")
-        plt.hist(delta, color='green')
+        plt.hist(delta, color='green', label="Delta percentage")
         plt.title(f"Delta percentage")
         plt.legend()
         plt.show()
@@ -261,7 +269,7 @@ class MainNN:
         mean_value = sum(y_pred_unscaled) / len(y_pred_unscaled)
         delta = abs(y_pred_unscaled - y_true_unscaled)
         delta_percentage = delta/y_true_unscaled
-        self.figshow(y_pred_unscaled, y_true_unscaled, delta_percentage)
+        self.figshow_regression(y_pred_unscaled, y_true_unscaled, delta_percentage)
         mean_delta = sum(delta) / len(delta)
         mean_value_info = f"Среднее значение: {round(mean_value, 2)} \n"
         mean_delta_info = f"Средняя ошибка: {round(mean_delta, 2)} \n"

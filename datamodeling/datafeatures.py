@@ -15,7 +15,7 @@ class DSProfile:
     features_list: Tuple = ()
     use_symbols_pairs: Tuple[str, str] = ("BTCUSDT", "ETHUSDT")
     timeframe: str = '15m'
-    Y_data: Tuple = ()
+    Y_data: str = "close1-close2"
     scaler: str = "robust"
     """  
     If train_size + val_size < 1.0 
@@ -30,6 +30,7 @@ class DSProfile:
     tsg_stride = 1
     tsg_start_index = 0
     tsg_overlap = 0
+    pass
 
 
 class DataFeatures:
@@ -189,6 +190,19 @@ class DataFeatures:
         self.y_df = self.y_df.drop(index=self.drop_idxs)
         return self.y_df.copy()
 
+    # 0 if Close1 - Close2 < 0 и 1 if Close1 - Close2 >= 0 - в одном столбце
+    def create_y_close1_close2_sub_trend(self):
+        self.y_df["close"] = self.source_df_1["close"]
+        normalized_df_1 = (self.source_df_1["close"] - self.source_df_1["close"].min()) / (
+                self.source_df_1["close"].max() - self.source_df_1["close"].min())
+        normalized_df_2 = (self.source_df_2["close"] - self.source_df_2["close"].min()) / (
+                self.source_df_2["close"].max() - self.source_df_2["close"].min())
+        temp_df = pd.DataFrame()
+        temp_df["close"] = pd.DataFrame(normalized_df_1 - normalized_df_2)
+        temp_df.loc[temp_df["close"] < 0, "close"] = 0
+        temp_df.loc[temp_df["close"] > 0, "close"] = 1
+        self.y_df = temp_df.drop(index=self.drop_idxs)
+        return self.y_df.copy()
 
 if __name__ == "main":
     loaded_crypto_data = DataLoad(pairs_symbols=None,

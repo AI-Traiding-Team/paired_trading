@@ -26,7 +26,6 @@ from datamodeling.datafeatures import DataFeatures, DSProfile
 __version__ = 0.0008
 
 
-
 def get_local_timezone_name():
     if time.daylight:
         offset_hour = time.altzone / 3600
@@ -219,9 +218,14 @@ class DSCreator:
     def create_dataset(self) -> DataSet:
         self.dataset.dataset_profile = DSProfile()
         self.dataset.features_df = self.features.collect_features(self.dataset_profile)
-        self.dataset.y_df = self.features.create_y_close1_close2_sub()
+        if self.dataset_profile.Y_data == "close1-close2":
+            self.dataset.y_df = self.features.create_y_close1_close2_sub()
+        elif self.dataset_profile.Y_data == "close1-close2_trend":
+            self.dataset.y_df = self.features.create_y_close1_close2_sub_trend()
+
         self.dataset.name = f'{self.dataset_profile.use_symbols_pairs[0]}-{self.dataset_profile.use_symbols_pairs[1]}-{self.dataset_profile.timeframe}'
         y_temp = self.dataset.y_df.values.reshape(-1, 1)
+
         if self.dataset_profile.scaler == "robust":
             self.dataset.features_scaler = RobustScaler().fit(self.dataset.features_df.values)
             self.dataset.targets_scaler = RobustScaler().fit(y_temp)
@@ -266,7 +270,7 @@ class DSCreator:
                               batch_size=x_arr.shape[0]
                               )
         for x_data, y_data in gen:
-            pass
+            continue
         return x_data, y_data
 
     def save_dataset_arrays(self, path_filename):
