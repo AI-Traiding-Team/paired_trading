@@ -10,8 +10,10 @@ from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Input, Flatten, Conv1D, ReLU, ELU, MaxPool1D
 from datamodeling.dscreator import DataSet
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-__version__ = 0.0007
+__version__ = 0.0008
 
 
 # def get_regression_model(batch_shape=(0, 299, 299, 3),
@@ -125,15 +127,13 @@ class NNProfile:
     experiment_directory = ''
     optimizer: str = "Adam"
     learning_rate: float = 1e-3
-    metrics: list = ("accuracy",)
+    metric: str  = "mae"
     loss: str = 'binary_crossentropy'
     epochs: int = 50
     model_type: str = 'regression'
     input_shape: Tuple = None
     num_classes: int = 2
     verbose: int = 1
-    # es = EarlyStopping(monitor='val_mse', mode='min', patience=start_patience, restore_best_weights=True, verbose=1)
-    # callbacks = [es]
     pass
 
 
@@ -142,32 +142,68 @@ class MainNN:
                  nn_profile: NNProfile):
         self.input_shape = None
         self.nn_profile = nn_profile
-        self.history: dict = {}
+        self.history = None
         self.keras_model = tf.keras.models.Model
         self.optimizer = None
 
+    def get_resnet1d_model(self,
+                           input_shape=(40, 15,),
+                           num_classes=2,
+                           kernels=32,
+                           stride=3,
+                           model_type="regression",
+                           ):
+
+        def residual_block(x, kernels, stride):
+            out = Conv1D(kernels, stride, padding='same')(x)
+            out = ReLU()(out)
+            out = Conv1D(kernels, stride, padding='same')(out)
+            out = tf.keras.layers.add([x, out])
+            out = ReLU()(out)
+            out = MaxPool1D(3, 2)(out)
+            return out
+
+        activation_1 = 'relu'
+        if model_type == 'regression':
+            activation_1 = 'elu'
+
+        x_in = Input(shape=input_shape)
+        x = Conv1D(kernels, stride)(x_in)
+        x = residual_block(x, kernels, stride)
+        x = residual_block(x, kernels, stride)
+        x = residual_block(x, kernels, stride)
+        x = residual_block(x, kernels, stride)
+        x = Flatten()(x)
+        x = Dense(32, activation=activation_1)(x)
+        x = Dense(32, activation=activation_1)(x)
+
+        if model_type == 'regression':
+            x_out = Dense(1, activation='linear')(x)
+        elif model_type == "binary_classification":
+            x_out = Dense(1, activation='sigmoid')(x)
+        elif model_type == "classification":
+            x_out = Dense(num_classes, activation='softmax')(x)
+        model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
+        return model
+
     def set_model(self):
         if self.nn_profile.optimizer =='Adam':
-            self.optimizer = tf.keras.optimizers.Adam()
+            self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.nn_profile.learning_rate)
         if self.nn_profile.model_type == 'regression':
-            self.keras_model = get_resnet_model(
-                                                # input_shape=self.input_shape,
-                                                num_classes=self.nn_profile.num_classes
-                                                )
+            self.keras_model = self.get_resnet1d_model(input_shape=self.input_shape,
+                                                      num_classes=self.nn_profile.num_classes
+                                                      )
             self.keras_model.compile(optimizer=self.optimizer,
-                                     loss='mae',
-                                     metrics=['mse'],
+                                     loss='mse',
+                                     metrics=['mae'],
                                      )
-            # self.keras_model = get_regression_model(batch_shape=self.input_shape,
-            #                                         num_classes=self.nn_profile.num_classes)
         pass
 
     def train_model(self, dataset: DataSet):
         self.input_shape = dataset.input_shape
         self.set_model()
         tf.keras.utils.plot_model(self.keras_model,
-                                  # to_file=f'{self.nn_profile.experiment_directory}/{self.nn_profile.experiment_name}_NN.png',
-                                  to_file=f'{self.nn_profile.experiment_name}_NN.png',
+                                  to_file=f'outputs/{self.nn_profile.experiment_name}_NN.png',
                                   show_shapes=True,
                                   show_layer_names=True,
                                   expand_nested=True,
@@ -177,13 +213,11 @@ class MainNN:
         self.history = self.keras_model.fit(dataset.train_gen,
                                             epochs=self.nn_profile.epochs,
                                             validation_data=dataset.val_gen,
-                                            # batch_size=self.nn_profile.batch_size,
-                                            # callbacks = [es],
-                                            # callbacks=[EarlyStopping(patience=self.PATIENCE)],
                                             verbose=self.nn_profile.verbose,
                                             )
-
+        self.keras_model.save(os.path.join('outputs/', self.nn_profile.experiment_name))
         pass
+
 
 
 if __name__ == "__main__":

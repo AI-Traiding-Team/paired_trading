@@ -24,6 +24,21 @@ if __name__ == "__main__":
     source_directory="../source_root" ->    Use this directory to search timeframes directory
     """
 
+    @dataclass(init=True)
+    class NNProfile:
+        experiment_name: str = ''
+        experiment_directory = ''
+        optimizer: str = "Adam"
+        learning_rate: float = 1e-3
+        metric: str = "mae"
+        loss: str = 'binary_crossentropy'
+        epochs: int = 50
+        model_type: str = 'regression'
+        input_shape: Tuple = None
+        num_classes: int = 2
+        verbose: int = 1
+        pass
+
     loaded_crypto_data = DataLoad(pairs_symbols=None,
                                   time_intervals=['15m'],
                                   source_directory="/home/cubecloud/Python/projects/paired_trading/source_root",
@@ -34,9 +49,9 @@ if __name__ == "__main__":
     dataset_1_profile = DSProfile()
     dsc = DSCreator(loaded_crypto_data, dataset_1_profile)
     dataset_1 = dsc.create_dataset()
-    test_nn_profile = NNProfile()
-    test_nn_profile.experiment_name = "test_NN_regression_ResNetV2"
-    test_nn = MainNN(test_nn_profile)
+    regression_profile = NNProfile()
+    regression_profile.experiment_name = "regression_resnet1d_close1_close2"
+    test_nn = MainNN(regression_profile)
     test_nn.train_model(dataset_1)
 
 
