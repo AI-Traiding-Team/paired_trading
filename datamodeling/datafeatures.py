@@ -9,8 +9,8 @@ __version__ = 0.0004
 
 
 class DataFeatures:
-    def __init__(self, source_directory):
-        self.loader = DataLoad(source_directory)
+    def __init__(self, loader: DataLoad):
+        self.loader = loader
         self.ohlcv_base = self.loader.ohlcvbase
         self.pairs_symbols = self.loader.pairs_symbols
         self.time_intervals = self.loader.time_intervals

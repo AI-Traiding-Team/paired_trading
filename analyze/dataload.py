@@ -241,6 +241,7 @@ class DataLoad(object):
             self.ohlcvbase.update({f"{file_list['pair'][index]}-{file_list['interval'][index]}": ohlcv})
         pass
 
+
 class Analyze(DataLoad):
     def show_all_data(self, usecol='close'):
         plt.figure(figsize=(45, 18))
@@ -317,6 +318,8 @@ class Analyze(DataLoad):
         plot = sns.heatmap(correlation_matrix, center=0)
         fig = plot.get_figure()
         fig.savefig('correlation.png')
+        pass
+
     """
     0. Берем модули отклонений
     1. Размечает все что по модулю меньше комиссии как 0

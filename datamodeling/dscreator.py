@@ -18,11 +18,12 @@ from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
 import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
+from dataclasses import dataclass
 from analyze.dataload import DataLoad
 from datafeatures import DataFeatures
 
 
-__version__ = 0.0002
+__version__ = 0.0004
 
 
 def get_local_timezone_name():
@@ -91,14 +92,80 @@ class TSDataGenerator(TimeseriesGenerator):
         return samples, targets
 
 
+@dataclass(init=True)
+class DSProfile:
+    features_list = []
+    use_symbols_pairs = ("BTCUSDT", "ETHUSDT")
+
+
 class DSCreator:
-    def __init__(self, source_directory):
-        self.features = DataFeatures(source_directory)
+    """
+    Class for dataset creation
+    for dataset configuration we are using DSConstants dataclass (profile)
+    """
+
+    def __init__(self,
+                 loader: DataLoad,
+                 dataset_profile: DSProfile):
+        """
+        Getting object with OHLCV data (symbols and timeframes).
+        All data with chosen period loaded to memory
+
+        Args:
+            loader (DataLoad):  object with data
+
+        Returns:
+            DSCreator (class):  object
+        """
+        self.features = DataFeatures(loader)
+        self.x_Train = None
+        self.y_Train = None
+        self.x_Val = None
+        self.y_Val = None
+        self.x_Test = None
+        self.y_Test = None
         pass
 
     def create_dataset(self):
+        self.features()
+        ready_dataset = (self.x_Train, self.y_Train,
+                         self.x_Val, self.y_Val,
+                         self.x_Test, self.y_Test)
+
+        return ready_dataset
+
+    def save_dataset(self, path_filename):
         pass
 
-    def save_datase(self, path_filename):
-        pass
 
+if __name__ == "__main__":
+    """
+    Usage for DataLoad class
+    ------------------------
+    pairs_symbol = None ->                    Use all pairs in timeframe directory
+    pairs_symbol = ("BTCUSDT", "ETHUSDT") ->  Use only this pairs to load 
+    
+    time_intervals = None ->                Use all timeframes directories for loading (with pairs_symbols)
+    time_intervals = ['15m'] ->             Use timeframes from this list to load
+    
+    start_period = None ->                  Use from [0:] of historical data
+    start_period = '2021-09-01 00:00:00' -> Use from this datetimeindex
+    
+    end_period = None ->                    Use until [:-1] of historical data
+    end_period = '2021-12-05 23:59:59' ->   Use until this datetimeindex
+    
+    source_directory="../source_root" ->    Use this directory to search timeframes directory
+    """
+
+    loaded_crypto_data = DataLoad(pairs_symbols=None,
+                                  time_intervals=['15m'],
+                                  source_directory="../source_root",
+                                  start_period='2021-09-01 00:00:00',
+                                  end_period='2021-12-05 23:59:59',
+
+                                  )
+    dataset_1_profile = DSProfile()
+    dataset_1 = DSCreator(loaded_crypto_data,
+                          dataset_1_profile)
+
+    x_Train, y_Train, x_Val, y_Val, x_Test, y_Test = dataset_1.create_dataset()
