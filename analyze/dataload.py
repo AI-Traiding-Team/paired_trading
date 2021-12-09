@@ -250,17 +250,17 @@ class DataLoad(object):
             time_intervals = pd.date_range(ohlcv.df.index[0], ohlcv.df.index[-1], freq='15T')
             for inter in time_intervals:
                 if inter not in time_intervals_column:
-                    ohlcv.df = pd.concat([ohlcv.df, pd.DataFrame([inter], columns=['datetime'])],
-                              ignore_index=True)
+                    ohlcv.df = pd.concat([ohlcv.df, pd.DataFrame([inter], columns=['datetime'])], ignore_index = True)
+                    # ohlcv.df = pd.concat(ohlcv.df, pd.DataFrame([np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, inter],
+                    #         columns=['open', 'high', 'low', 'close', 'volume', datetime']),
+                    #           ignore_index=True)
             ohlcv.df.reset_index
             ohlcv.df = ohlcv.df.sort_values(by=['datetime'])
             ohlcv.df.index = ohlcv.df['datetime']
             ohlcv.df = ohlcv.df.drop(columns=['datetime'])
             ohlcv.df.index.name = 'datetimeindex'
             if do_repair:
-                # TODO: need to fix
-                ohlcv.df.fillna(method="ffill")
-                print('{tkkj')
+                ohlcv.df = ohlcv.df.fillna(method="ffill")
 
 
 class Analyze(DataLoad):
