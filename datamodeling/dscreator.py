@@ -75,9 +75,11 @@ class TSDataGenerator(TimeseriesGenerator):
                              'is disallowed, as no part of the sequence '
                              'would be left to be used as current step.'
                              % (self.start_index, self.end_index))
+
+        self.sample_shape = self.calc_shape()
         pass
 
-    def cal_shape(self):
+    def calc_shape(self):
         index = 1
         i = (self.start_index + self.batch_size * self.stride * index)
         rows = np.arange(i, min(i + self.batch_size *
@@ -85,8 +87,8 @@ class TSDataGenerator(TimeseriesGenerator):
         samples = np.array([self.data[row - self.overlap - self.length:row:self.sampling_rate]
                             for row in rows])
         # self.sample_shape = np.expand_dims(samples, axis=0).shape
-        self.sample_shape = samples.shape
-        pass
+        sample_shape = (samples.shape[-2], samples.shape[-1],)
+        return sample_shape
 
     def __getitem__(self, index):
         if self.shuffle:

@@ -152,9 +152,9 @@ class DataFeatures:
 
         """ Warning! date feature reduced for lowest timeframe """
         if timeframe == '1m':
-            cols_create = self.cols_create[:-2]
+            cols_create = self.cols_create[-2:]
         else:
-            cols_create = self.cols_create[:-2]
+            cols_create = self.cols_create
         self.get_feature_datetime(self.source_df_1, cols_create=cols_create)
 
         features_df["close1"] = self.source_df_1["close"].copy()

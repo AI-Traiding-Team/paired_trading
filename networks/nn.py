@@ -11,7 +11,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Input, Flatten, Conv1D, ReLU, ELU, MaxPool1D
 from datamodeling.dscreator import DataSet
 
-__version__ = 0.0006
+__version__ = 0.0007
 
 
 # def get_regression_model(batch_shape=(0, 299, 299, 3),
@@ -76,10 +76,11 @@ __version__ = 0.0006
 #     return new_model
 
 
-def get_resnet_model(input_shape=(128, 40, 15),
+def get_resnet_model(input_shape=(40, 15, ),
                      num_classes=2,
                      kernels=32,
-                     stride=5,
+                     # stride=5,
+                     stride=3,
                      model_type="regression",
                      ):
 
@@ -89,20 +90,31 @@ def get_resnet_model(input_shape=(128, 40, 15),
     out = Conv1D(kernels, stride, padding='same')(out)
     out = tf.keras.layers.add([x, out])
     out = ReLU()(out)
-    out = MaxPool1D(5, 2)(out)
+    out = MaxPool1D(3, 2)(out)
     return out
 
-  x_in = Input(input_shape)
+  activation_1 = 'relu'
+  if model_type == 'regression':
+      activation_1 = 'elu'
+
+  x_in = Input(shape=input_shape)
   x = Conv1D(kernels, stride)(x_in)
   x = residual_block(x, kernels, stride)
   x = residual_block(x, kernels, stride)
   x = residual_block(x, kernels, stride)
   x = residual_block(x, kernels, stride)
-  x = residual_block(x, kernels, stride)
+  # x = residual_block(x, kernels, stride)
   x = Flatten()(x)
-  x = Dense(32, activation='relu')(x)
-  x = Dense(32, activation='relu')(x)
-  x_out = (Dense(1, activation='sigmoid')(x) if num_classes == 2 else Dense(5, activation='softmax')(x))
+  x = Dense(32, activation=activation_1)(x)
+  x = Dense(32, activation=activation_1)(x)
+  # x_out = (Dense(1, activation='sigmoid')(x) if num_classes == 2 else
+
+  if model_type == 'regression':
+      x_out = Dense(1, activation='linear')(x)
+  elif model_type == "binary_classification":
+      x_out = Dense(1, activation='sigmoid')(x)
+  elif model_type == "classification":
+      x_out = Dense(num_classes, activation='softmax')(x)
   model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
   return model
 
@@ -115,7 +127,7 @@ class NNProfile:
     learning_rate: float = 1e-3
     metrics: list = ("accuracy",)
     loss: str = 'binary_crossentropy'
-    epochs: int = 10
+    epochs: int = 50
     model_type: str = 'regression'
     input_shape: Tuple = None
     num_classes: int = 2
@@ -132,12 +144,20 @@ class MainNN:
         self.nn_profile = nn_profile
         self.history: dict = {}
         self.keras_model = tf.keras.models.Model
+        self.optimizer = None
 
     def set_model(self):
+        if self.nn_profile.optimizer =='Adam':
+            self.optimizer = tf.keras.optimizers.Adam()
         if self.nn_profile.model_type == 'regression':
-            self.keras_model = get_resnet_model(input_shape=self.input_shape,
+            self.keras_model = get_resnet_model(
+                                                # input_shape=self.input_shape,
                                                 num_classes=self.nn_profile.num_classes
                                                 )
+            self.keras_model.compile(optimizer=self.optimizer,
+                                     loss='mae',
+                                     metrics=['mse'],
+                                     )
             # self.keras_model = get_regression_model(batch_shape=self.input_shape,
             #                                         num_classes=self.nn_profile.num_classes)
         pass
@@ -145,6 +165,15 @@ class MainNN:
     def train_model(self, dataset: DataSet):
         self.input_shape = dataset.input_shape
         self.set_model()
+        tf.keras.utils.plot_model(self.keras_model,
+                                  # to_file=f'{self.nn_profile.experiment_directory}/{self.nn_profile.experiment_name}_NN.png',
+                                  to_file=f'{self.nn_profile.experiment_name}_NN.png',
+                                  show_shapes=True,
+                                  show_layer_names=True,
+                                  expand_nested=True,
+                                  dpi=96,
+                                  )
+
         self.history = self.keras_model.fit(dataset.train_gen,
                                             epochs=self.nn_profile.epochs,
                                             validation_data=dataset.val_gen,
@@ -153,14 +182,6 @@ class MainNN:
                                             # callbacks=[EarlyStopping(patience=self.PATIENCE)],
                                             verbose=self.nn_profile.verbose,
                                             )
-
-        tf.keras.utils.plot_model(self.keras_model,
-                                  to_file=f'{self.nn_profile.experiment_directory}/{self.nn_profile.experiment_name}_NN.png',
-                                  show_shapes=True,
-                                  show_layer_names=True,
-                                  expand_nested=True,
-                                  dpi=96,
-                                  )
 
         pass
 
