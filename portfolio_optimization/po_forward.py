@@ -23,7 +23,7 @@ from constants import destination_path
 filename = 'data.txt'
 df = pd.read_csv(f"{destination_path}/{filename}", header=0)
 df.set_index('datetimeindex', inplace=True)
-# df = df[-450:]
+df = df[-300:]
 del df['USDCUSDT']
 print(f'\nИсходные данные (цены Close):\n{df}\n')
 stocks = list(df.columns.values)
@@ -56,12 +56,12 @@ print(f'Идет процесс форвардного анализа:\n'
       f'\tокно торговли = {trade_window} бар(а,ов)')
 
 df_total_sum = pd.DataFrame()
-for train_window in tqdm([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 20, 30, 45, 60, 120, 240]):  # окно, на котором создаем оптимальный портфель
-    print(f'\n\tокно формирования портфеля = {train_window} бара(ов)')
+for train_window in tqdm([3, 4, 5, 6, 7, 8, 9, 10]):  # окно, на котором создаем оптимальный портфель
+    # print(f'\n\tокно формирования портфеля = {train_window} бара(ов)')
     max_sharpe_weights = pd.DataFrame()
     df_trades = pd.DataFrame()
 
-    for idx_start in trange(0, dCloseData.shape[0] - 1 - train_window, trade_window):
+    for idx_start in range(0, dCloseData.shape[0] - 1 - train_window, trade_window):
 
         idx_end = idx_start + train_window #- trade_window
         # print(f'idx_start: {idx_start},\tidx_end: {idx_end}')
@@ -95,7 +95,7 @@ for train_window in tqdm([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 20, 30, 45, 60
     df_total_sum = df_total_sum.join(df_trades['total_sum'], how='outer').rename(
         columns={'total_sum': train_window}).fillna(method='ffill')
     if df_total_sum.shape[0] > dCloseData.shape[0]: df_total_sum = df_total_sum[:dCloseData.shape[0]]
-    print(f'\n{df_total_sum[-1:]}')
+    # print(f'\n{df_total_sum[-1:]}')
 df_total_sum.index = closeData.index[dCloseData.shape[0] - df_total_sum.shape[0] + 1:]
 df_total_sum.to_excel(f'{destination_path}/df_total_sum.xlsx')
 
