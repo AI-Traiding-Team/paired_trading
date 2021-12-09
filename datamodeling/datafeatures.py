@@ -2,14 +2,39 @@ import os
 import sys
 import numpy as np
 import pandas as pd
+from typing import Tuple
 from analyze.dataload import DataLoad, TradeConstants
+from dataclasses import dataclass
 # sys.path.insert(1, os.path.join(os.getcwd(), 'analyze'))
 
-__version__ = 0.0004
+__version__ = 0.0006
+
+
+@dataclass(init=True)
+class DSProfile:
+    features_list: Tuple = ()
+    use_symbols_pairs: Tuple[str, str] = ("BTCUSDT", "ETHUSDT")
+    timeframe: str = '15m'
+    Y_data: Tuple = ()
+    scaler: str = "robust"
+    """  
+    If train_size + val_size < 1.0 
+    test_size = 1.0 - train_size + val_size 
+    """
+    train_size = 0.6
+    val_size = 0.2
+    """ Warning! Change this qty if using .shift() more then 2 """
+    gap_timeframes = 3
+    tsg_window_length = 40
+    tsg_sampling_rate = 1
+    tsg_stride = 1
+    tsg_start_index = 0
+    tsg_overlap = 0
 
 
 class DataFeatures:
     def __init__(self, loader: DataLoad):
+        self.drop_idxs: list = []
         self.loader = loader
         self.ohlcv_base = self.loader.ohlcvbase
         self.pairs_symbols = self.loader.pairs_symbols
@@ -24,7 +49,11 @@ class DataFeatures:
                             'hour',
                             'minute'
                             )
-        pass
+        self.clear_na_flag = False
+        self.source_df_1 = None
+        self.source_df_2 = None
+        self.features_df = None
+        self.y_df = pd.DataFrame()
 
     @staticmethod
     def split_datetime_data(datetime_index: pd.DatetimeIndex,
@@ -88,6 +117,15 @@ class DataFeatures:
                                           'minute'
                                           )
                              ) -> pd.DataFrame:
+        """
+
+        Args:
+            input_df (pd.Dataframe):    dataframe
+            cols_create:        columns to create from datetime
+
+        Returns:
+
+        """
         date_df = DataFeatures.split_datetime_data(input_df.index, cols_create)
         return date_df
 
@@ -104,49 +142,65 @@ class DataFeatures:
         diff_df = normalized_df_1 - normalized_df_2
         return diff_df
 
-    def collect_features(self,
-                         pair_symbol_1,
-                         pair_symbol_2,
-                         timeframe):
-
+    def collect_features(self, profile: DSProfile):
+        pair_symbol_1 = profile.use_symbols_pairs[0]
+        pair_symbol_2 = profile.use_symbols_pairs[1]
+        timeframe = profile.timeframe
         features_df = pd.DataFrame()
-        source_df_1 = self.ohlcv_base[f"{pair_symbol_1}-{timeframe}"].copy()
-        source_df_2 = self.ohlcv_base[f"{pair_symbol_2}-{timeframe}"].copy()
+        self.source_df_1 = self.ohlcv_base[f"{pair_symbol_1}-{timeframe}"].df.copy()
+        self.source_df_2 = self.ohlcv_base[f"{pair_symbol_2}-{timeframe}"].df.copy()
 
         """ Warning! date feature reduced for lowest timeframe """
         if timeframe == '1m':
             cols_create = self.cols_create[:-2]
         else:
             cols_create = self.cols_create[:-2]
-        self.get_feature_datetime(source_df_1.index, cols_create=cols_create)
+        self.get_feature_datetime(self.source_df_1, cols_create=cols_create)
 
-        features_df["close1"] = source_df_1["close"]
-        features_df.insert(1, "close2", source_df_2["close"].values())
-        features_df.insert(2, "volume1", source_df_1["volume"].values())
-        features_df.insert(3, "volume2", source_df_2["volume"].values())
-        features_df.insert(4, "close1-close2", source_df_1["close"] - source_df_2["close"])
-        features_df["log_close1"] = np.log(source_df_1["close"])
-        features_df["log_close2"] = np.log(source_df_2["close"])
-        features_df["log_volume1"] = np.log(source_df_1["volume"])
-        features_df["log_volume2"] = np.log(source_df_2["volume"])
-        features_df["diff_close1"] = source_df_1["close"].diff()
-        features_df["diff_close2"] = source_df_2["close"].diff()
-        shift_df1 = source_df_1["close"].shift(1)
-        features_df["log_close1_close_shift1"] = source_df_1["close"]/shift_df1
-        shift_df2 = source_df_2["close"].shift(1)
-        features_df["log_close1_close_shift2"] = source_df_2["close"]/shift_df2
-        features_df["sin_close1"] = np.sin(source_df_1['close'])
-        features_df["sin_close2"] = np.sin(source_df_2['close'])
-        return features_df
+        features_df["close1"] = self.source_df_1["close"].copy()
+        features_df.insert(1, "close2", self.source_df_2["close"].values)
+        features_df.insert(2, "volume1", self.source_df_1["volume"].values)
+        features_df.insert(3, "volume2", self.source_df_2["volume"].values)
+        features_df.insert(4, "close1-close2", self.source_df_1["close"] - self.source_df_2["close"])
+        features_df["log_close1"] = np.log(self.source_df_1["close"])
+        features_df["log_close2"] = np.log(self.source_df_2["close"])
+        features_df["log_volume1"] = np.log(self.source_df_1["volume"])
+        features_df["log_volume2"] = np.log(self.source_df_2["volume"])
+        features_df["diff_close1"] = self.source_df_1["close"].diff()
+        features_df["diff_close2"] = self.source_df_2["close"].diff()
 
-    def create_y(self):
-        y_data = None
-        return y_data
+        """ Warning! NA must be cleared in final dataframe after shift """
+        self.clear_na_flag = True
+        shift_df1 = self.source_df_1["close"].shift(1)
+        features_df["log_close1_close_shift1"] = self.source_df_1["close"]/shift_df1
+        shift_df2 = self.source_df_2["close"].shift(1)
+        features_df["log_close2_close_shift1"] = self.source_df_2["close"]/shift_df2
+        features_df["sin_close1"] = np.sin(self.source_df_1['close'])
+        features_df["sin_close2"] = np.sin(self.source_df_2['close'])
+        if self.clear_na_flag:
+            self.drop_idxs = features_df.loc[pd.isnull(features_df).any(1), :].index.values
+            features_df = features_df.drop(index=self.drop_idxs)
+        self.features_df = features_df.copy()
+        return self.features_df
 
+    def create_y_close1_close2_sub(self):
+        self.y_df["close"] = self.source_df_1["close"]
+        self.y_df = self.y_df["close"] - self.source_df_2["close"]
+        self.y_df = self.y_df.drop(index=self.drop_idxs)
+        return self.y_df.copy()
 
 
 if __name__ == "main":
-    fd = DataFeatures("/source_root")
-    x_df = fd.collect_features("ETHUSDT", "BTCUSDT", "1m")
+    loaded_crypto_data = DataLoad(pairs_symbols=None,
+                                  time_intervals=['15m'],
+                                  source_directory="../source_root",
+                                  start_period='2021-09-01 00:00:00',
+                                  end_period='2021-12-05 23:59:59',
+
+                                  )
+
+    fd = DataFeatures(loaded_crypto_data)
+    profile_1 = DSProfile()
+    x_df = fd.collect_features(profile_1)
 
 

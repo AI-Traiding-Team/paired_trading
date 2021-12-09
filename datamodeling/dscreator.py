@@ -20,10 +20,11 @@ import seaborn as sns
 import tensorflow as tf
 from dataclasses import dataclass
 from analyze.dataload import DataLoad
-from datafeatures import DataFeatures
+from datafeatures import DataFeatures, DSProfile
 
 
-__version__ = 0.0004
+__version__ = 0.0008
+
 
 
 def get_local_timezone_name():
@@ -92,10 +93,36 @@ class TSDataGenerator(TimeseriesGenerator):
         return samples, targets
 
 
-@dataclass(init=True)
-class DSProfile:
-    features_list = []
-    use_symbols_pairs = ("BTCUSDT", "ETHUSDT")
+@dataclass
+class DataSet:
+    def __init__(self):
+        self.name: str = ''
+        self.dataset_profile = DSProfile()
+        self.features_df = None
+        self.y_df = None
+        self.x_Train = None
+        self.y_Train = None
+        self.x_Val = None
+        self.y_Val = None
+        self.x_Test = None
+        self.y_Test = None
+        self.scaler = None
+        self.train_gen = None
+        self.val_gen = None
+        self.test_gen = None
+    pass
+
+    def get_train(self):
+        if (self.x_Train is not None) and (self.y_Train is not None):
+            return self.x_Train, self.y_Train
+
+    def get_val(self):
+        if (self.x_Val is not None) and (self.y_Val is not None):
+            return self.x_Val, self.y_Val
+
+    def get_test(self):
+        if (self.x_Test is not None) and (self.y_Test is not None):
+            return self.x_Test, self.y_Test
 
 
 class DSCreator:
@@ -118,23 +145,90 @@ class DSCreator:
             DSCreator (class):  object
         """
         self.features = DataFeatures(loader)
-        self.x_Train = None
-        self.y_Train = None
-        self.x_Val = None
-        self.y_Val = None
-        self.x_Test = None
-        self.y_Test = None
-        pass
+        self.dataset_profile = dataset_profile
+        self.dataset = DataSet()
 
-    def create_dataset(self):
-        self.features()
-        ready_dataset = (self.x_Train, self.y_Train,
-                         self.x_Val, self.y_Val,
-                         self.x_Test, self.y_Test)
 
-        return ready_dataset
+    def split_data_df(self):
+        df_rows = self.dataset.features_df.shape[0]
+        df_train_len = int(df_rows * self.dataset_profile.train_size)
+        df_val_len = df_rows - (df_train_len + self.dataset_profile.gap_timeframes)
+        self.dataset.train_df = self.dataset.features_df.iloc[:df_train_len, :]
+        if self.dataset_profile.train_size + self.dataset_profile.val_size == 1.0:
+            self.dataset.val_df = self.dataset.features_df.iloc[df_train_len + self.dataset_profile.gap_timeframes:, :]
+            return df_train_len, df_val_len, None
+        else:
+            df_val_len = int(df_rows * self.dataset_profile.val_size)
+            df_test_len = df_rows - (df_train_len + self.dataset_profile.gap_timeframes) - (df_val_len + self.dataset_profile.gap_timeframes)
+            self.dataset.val_df = self.dataset.features_df.iloc[
+                                  df_train_len + self.dataset_profile.gap_timeframes: df_val_len + df_train_len + self.dataset_profile.gap_timeframes,
+                                  :]
+            self.dataset.test_df = self.dataset.features_df.iloc[df_rows - df_test_len:, :]
+            return df_train_len, df_val_len, df_test_len
 
-    def save_dataset(self, path_filename):
+    def get_train_generator(self, x_Train_data, y_Train_data):
+        self.dataset.train_gen = TSDataGenerator(data=x_Train_data,
+                                                 targets=y_Train_data,
+                                                 length=self.dataset_profile.tsg_window_length,
+                                                 sampling_rate=self.dataset_profile.tsg_sampling_rate,
+                                                 stride=self.dataset_profile.tsg_stride,
+                                                 start_index=self.dataset_profile.tsg_start_index,
+                                                 overlap=self.dataset_profile.tsg_overlap,
+                                                 )
+        return self.dataset.train_gen
+
+    def get_val_generator(self, x_Val_data, y_Val_data):
+        self.dataset.val_gen = TSDataGenerator(data=x_Val_data,
+                                               targets=y_Val_data,
+                                               length=self.dataset_profile.tsg_window_length,
+                                               sampling_rate=self.dataset_profile.tsg_sampling_rate,
+                                               stride=self.dataset_profile.tsg_stride,
+                                               start_index=self.dataset_profile.tsg_start_index,
+                                               overlap=self.dataset_profile.tsg_overlap,
+                                               )
+        return self.dataset.val_gen
+
+    def get_test_generator(self, x_Test_data, y_Test_data):
+        self.dataset.test_gen = TSDataGenerator(data=x_Test_data,
+                                                targets=y_Test_data,
+                                                length=self.dataset_profile.tsg_window_length,
+                                                sampling_rate=self.dataset_profile.tsg_sampling_rate,
+                                                stride=self.dataset_profile.tsg_stride,
+                                                start_index=self.dataset_profile.tsg_start_index,
+                                                overlap=self.dataset_profile.tsg_overlap,
+                                                )
+        return self.dataset.val_gen
+
+    def create_dataset(self) -> DataSet:
+        self.dataset.dataset_profile = DSProfile()
+        self.dataset.features_df = self.features.collect_features(self.dataset_profile)
+        self.dataset.y_df = self.features.create_y_close1_close2_sub()
+        self.dataset.name = f'{self.dataset_profile.use_symbols_pairs[0]}-{self.dataset_profile.use_symbols_pairs[1]}-{self.dataset_profile.timeframe}'
+        self.split_data_df()
+        if self.dataset_profile.scaler == "robust":
+            self.dataset.scaler = RobustScaler().fit(self.dataset.features_df.values)
+        x_arr = self.dataset.scaler.transform(self.dataset.features_df.values)
+        y_arr = self.dataset.scaler.transform(self.dataset.y_df.values)
+        train_len, val_len, test_len = self.split_data_df()
+        if test_len is None:
+            x_Train_data = x_arr[train_len:, :]
+            x_Val_data = x_arr[:train_len + self.dataset_profile.gap_timeframes, :]
+            y_Train_data = y_arr[train_len:, :]
+            y_Val_data = y_arr[:train_len + self.dataset_profile.gap_timeframes, :]
+        else:
+            x_Train_data = x_arr[train_len:, :]
+            x_Val_data = x_arr[train_len + self.dataset_profile.gap_timeframes:train_len + self.dataset_profile.gap_timeframes + val_len, :]
+            x_Test_data = x_arr[x_arr.shape[0] - test_len:, :]
+            y_Train_data = y_arr[train_len:, :]
+            y_Val_data = y_arr[train_len + self.dataset_profile.gap_timeframes:train_len + self.dataset_profile.gap_timeframes + val_len, :]
+            y_Test_data = y_arr[x_arr.shape[0] - test_len:, :]
+            _ = self.get_test_generator(x_Test_data, y_Test_data)
+
+        _ = self.get_train_generator(x_Train_data, y_Train_data)
+        _ = self.get_val_generator(x_Val_data, y_Val_data)
+        return self.dataset
+
+    def save_dataset_arrays(self, path_filename):
         pass
 
 
@@ -160,12 +254,12 @@ if __name__ == "__main__":
     loaded_crypto_data = DataLoad(pairs_symbols=None,
                                   time_intervals=['15m'],
                                   source_directory="../source_root",
-                                  start_period='2021-09-01 00:00:00',
+                                  start_period='2021-11-01 00:00:00',
                                   end_period='2021-12-05 23:59:59',
-
                                   )
-    dataset_1_profile = DSProfile()
-    dataset_1 = DSCreator(loaded_crypto_data,
-                          dataset_1_profile)
 
-    x_Train, y_Train, x_Val, y_Val, x_Test, y_Test = dataset_1.create_dataset()
+    dataset_1_profile = DSProfile()
+    dsc = DSCreator(loaded_crypto_data,
+                    dataset_1_profile)
+
+    dataset_1_cls = dsc.create_dataset()

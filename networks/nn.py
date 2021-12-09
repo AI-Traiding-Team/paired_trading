@@ -72,6 +72,9 @@ def get_classification_model(batch_shape=(0, 299, 299, 3),
                       )
     return new_model
 
+class MainNN:
+
+
 
 if __name__ == "__main__":
     # model = get_regression_model()
