@@ -10,7 +10,7 @@ import numpy as np
 from typing import Tuple
 from dataclasses import dataclass
 
-__version__ = 0.0012
+__version__ = 0.0013
 
 sns.set(style='ticks')
 
@@ -239,6 +239,7 @@ class DataLoad(object):
             if (self.start_period is not None) and (self.end_period is not None):
                 ohlcv.set_period(self.start_period, self.end_period)
             self.ohlcvbase.update({f"{file_list['pair'][index]}-{file_list['interval'][index]}": ohlcv})
+        self.check_and_repair()
         pass
 
     def check_and_repair(self, do_repair=True):
@@ -254,14 +255,14 @@ class DataLoad(object):
                     # ohlcv.df = pd.concat(ohlcv.df, pd.DataFrame([np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, inter],
                     #         columns=['open', 'high', 'low', 'close', 'volume', datetime']),
                     #           ignore_index=True)
-            ohlcv.df.reset_index
+            ohlcv.df.reset_index()
             ohlcv.df = ohlcv.df.sort_values(by=['datetime'])
             ohlcv.df.index = ohlcv.df['datetime']
             ohlcv.df = ohlcv.df.drop(columns=['datetime'])
             ohlcv.df.index.name = 'datetimeindex'
             if do_repair:
                 ohlcv.df = ohlcv.df.fillna(method="ffill")
-
+        pass
 
 
 class Analyze(DataLoad):
