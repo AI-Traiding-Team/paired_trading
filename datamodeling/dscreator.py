@@ -20,7 +20,7 @@ import seaborn as sns
 import tensorflow as tf
 from dataclasses import dataclass
 from analyze.dataload import DataLoad
-from datafeatures import DataFeatures, DSProfile
+from datamodeling.datafeatures import DataFeatures, DSProfile
 
 
 __version__ = 0.0008
@@ -68,12 +68,25 @@ class TSDataGenerator(TimeseriesGenerator):
         self.shuffle = shuffle
         self.reverse = reverse
         self.batch_size = batch_size
+        self.sample_shape = None
 
         if self.start_index > self.end_index:
             raise ValueError('`start_index+length=%i > end_index=%i` '
                              'is disallowed, as no part of the sequence '
                              'would be left to be used as current step.'
                              % (self.start_index, self.end_index))
+        pass
+
+    def cal_shape(self):
+        index = 1
+        i = (self.start_index + self.batch_size * self.stride * index)
+        rows = np.arange(i, min(i + self.batch_size *
+                                self.stride, self.end_index + 1), self.stride)
+        samples = np.array([self.data[row - self.overlap - self.length:row:self.sampling_rate]
+                            for row in rows])
+        # self.sample_shape = np.expand_dims(samples, axis=0).shape
+        self.sample_shape = samples.shape
+        pass
 
     def __getitem__(self, index):
         if self.shuffle:
@@ -86,8 +99,9 @@ class TSDataGenerator(TimeseriesGenerator):
 
         samples = np.array([self.data[row - self.overlap - self.length:row:self.sampling_rate]
                             for row in rows])
+        self.sample_shape = samples.shape
         targets = np.array([self.targets[row] for row in rows])
-        # print(samples.shape)
+
         if self.reverse:
             return samples[:, ::-1, ...], targets
         return samples, targets
@@ -106,10 +120,12 @@ class DataSet:
         self.y_Val = None
         self.x_Test = None
         self.y_Test = None
-        self.scaler = None
+        self.features_scaler = None
+        self.targets_scaler = None
         self.train_gen = None
         self.val_gen = None
         self.test_gen = None
+        self.input_shape = None
     pass
 
     def get_train(self):
@@ -147,7 +163,6 @@ class DSCreator:
         self.features = DataFeatures(loader)
         self.dataset_profile = dataset_profile
         self.dataset = DataSet()
-
 
     def split_data_df(self):
         df_rows = self.dataset.features_df.shape[0]
@@ -204,11 +219,14 @@ class DSCreator:
         self.dataset.features_df = self.features.collect_features(self.dataset_profile)
         self.dataset.y_df = self.features.create_y_close1_close2_sub()
         self.dataset.name = f'{self.dataset_profile.use_symbols_pairs[0]}-{self.dataset_profile.use_symbols_pairs[1]}-{self.dataset_profile.timeframe}'
-        self.split_data_df()
+        y_temp = self.dataset.y_df.values.reshape(-1, 1)
         if self.dataset_profile.scaler == "robust":
-            self.dataset.scaler = RobustScaler().fit(self.dataset.features_df.values)
-        x_arr = self.dataset.scaler.transform(self.dataset.features_df.values)
-        y_arr = self.dataset.scaler.transform(self.dataset.y_df.values)
+            self.dataset.features_scaler = RobustScaler().fit(self.dataset.features_df.values)
+            self.dataset.targets_scaler = RobustScaler().fit(y_temp)
+
+        x_arr = self.dataset.features_scaler.transform(self.dataset.features_df.values)
+        """ check """
+        y_arr = self.dataset.targets_scaler.transform(y_temp)
         train_len, val_len, test_len = self.split_data_df()
         if test_len is None:
             x_Train_data = x_arr[train_len:, :]
@@ -225,7 +243,8 @@ class DSCreator:
             _ = self.get_test_generator(x_Test_data, y_Test_data)
 
         _ = self.get_train_generator(x_Train_data, y_Train_data)
-        _ = self.get_val_generator(x_Val_data, y_Val_data)
+        x_Val_gen = self.get_val_generator(x_Val_data, y_Val_data)
+        self.dataset.input_shape = x_Val_gen.sample_shape
         return self.dataset
 
     def save_dataset_arrays(self, path_filename):
