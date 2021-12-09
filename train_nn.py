@@ -52,7 +52,7 @@ if __name__ == "__main__":
     loaded_crypto_data = DataLoad(pairs_symbols=None,
                                   time_intervals=['15m'],
                                   source_directory="/home/cubecloud/Python/projects/paired_trading/source_root",
-                                  start_period='2021-11-01 00:00:00',
+                                  start_period='2021-10-01 00:00:00',
                                   end_period='2021-12-05 23:59:59',
                                   )
 

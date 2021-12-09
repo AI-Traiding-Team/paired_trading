@@ -233,15 +233,15 @@ class MainNN:
         ax2.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
         plt.plot(y_pred, linestyle='--', color='red', label="Prediction")
         plt.plot(y_true, linestyle='--', color='blue', label="True")
-        plt.plot(delta, linestyle='--', color='green', label="Delta")
         plt.title(f"Prediction and True ")
         ax3 = fig.add_subplot(1, 3, 3)
         ax3.set_axisbelow(True)
         ax3.minorticks_on()
         ax3.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
         ax3.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-        plt.plot(delta, linestyle='--', color='green', label="Delta")
-        plt.title(f"Delta")
+        # plt.plot(delta*100, linestyle='--', color='green', label="Delta percentage")
+        plt.hist(delta, color='green')
+        plt.title(f"Delta percentage")
         plt.legend()
         plt.show()
         pass
@@ -260,14 +260,14 @@ class MainNN:
         # вычисление среднего значения, средней ошибки и процента ошибки
         mean_value = sum(y_pred_unscaled) / len(y_pred_unscaled)
         delta = abs(y_pred_unscaled - y_true_unscaled)
-        self.figshow(y_pred_unscaled, y_true_unscaled, delta)
+        delta_percentage = delta/y_true_unscaled
+        self.figshow(y_pred_unscaled, y_true_unscaled, delta_percentage)
         mean_delta = sum(delta) / len(delta)
         mean_value_info = f"Среднее значение: {round(mean_value, 2)} \n"
         mean_delta_info = f"Средняя ошибка: {round(mean_delta, 2)} \n"
         mean_percent_info = f"Средний процент ошибки: {round(100 * mean_delta / mean_value, 2)}%"
         text_data = mean_value_info + mean_delta_info + mean_percent_info
         print(text_data)
-
 
 
 if __name__ == "__main__":
