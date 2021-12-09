@@ -241,6 +241,28 @@ class DataLoad(object):
             self.ohlcvbase.update({f"{file_list['pair'][index]}-{file_list['interval'][index]}": ohlcv})
         pass
 
+    def check_and_repair(self, do_repair=True):
+        # delete duplicates from dataframe
+        for name, ohlcv in self.ohlcvbase.items():
+            ohlcv.df['datetime'] = ohlcv.df.index
+            ohlcv.df = ohlcv.df.drop_duplicates(subset='datetime')
+            time_intervals_column = ohlcv.df.index
+            time_intervals = pd.date_range(ohlcv.df.index[0], ohlcv.df.index[-1], freq='15T')
+            for inter in time_intervals:
+                if inter not in time_intervals_column:
+                    ohlcv.df = pd.concat([ohlcv.df, pd.DataFrame([inter], columns=['datetime'])],
+                              ignore_index=True)
+            ohlcv.df.reset_index
+            ohlcv.df = ohlcv.df.sort_values(by=['datetime'])
+            ohlcv.df.index = ohlcv.df['datetime']
+            ohlcv.df = ohlcv.df.drop(columns=['datetime'])
+            ohlcv.df.index.name = 'datetimeindex'
+            if do_repair:
+                # TODO: need to fix
+                ohlcv.df.fillna(method="ffill")
+                print('{tkkj')
+
+
 class Analyze(DataLoad):
     def show_all_data(self, usecol='close'):
         plt.figure(figsize=(45, 18))
@@ -422,6 +444,7 @@ if __name__ == '__main__':
                        start_period='2021-09-01 00:00:00',
                        end_period='2021-12-05 23:59:59'
                        )
+    show_data.check_and_repair()
     # show_data.show_all_data()
     # show_data.show_combinations_diff(savepath="/home/cubecloud/Python/projects/paired_trading/analyze/pics")
     #show_data.diff_calculation()
