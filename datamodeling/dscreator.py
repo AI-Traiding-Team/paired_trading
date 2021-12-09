@@ -18,9 +18,11 @@ from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
 import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
+from analyze.dataload import DataLoad
+from datafeatures import DataFeatures
 
 
-__version__ = 0.0001
+__version__ = 0.0002
 
 
 def get_local_timezone_name():
@@ -33,6 +35,7 @@ def get_local_timezone_name():
     if offset_hour > 0:
         offset_hour_msg = f"+{offset_hour:.0f}"
     return f'Etc/GMT{offset_hour_msg}'
+
 
 class TSDataGenerator(TimeseriesGenerator):
     def __init__(self, data, targets, length, sampling_rate=1, stride=1, start_index=0, overlap=0, end_index=None,
@@ -86,3 +89,16 @@ class TSDataGenerator(TimeseriesGenerator):
         if self.reverse:
             return samples[:, ::-1, ...], targets
         return samples, targets
+
+
+class DSCreator:
+    def __init__(self, source_directory):
+        self.features = DataFeatures(source_directory)
+        pass
+
+    def create_dataset(self):
+        pass
+
+    def save_datase(self, path_filename):
+        pass
+

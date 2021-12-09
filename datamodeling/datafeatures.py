@@ -3,12 +3,12 @@ import sys
 import numpy as np
 import pandas as pd
 from analyze.dataload import DataLoad, TradeConstants
-sys.path.insert(1, os.path.join(os.getcwd(), 'analyze'))
+# sys.path.insert(1, os.path.join(os.getcwd(), 'analyze'))
 
 __version__ = 0.0004
 
 
-class FeaturesData:
+class DataFeatures:
     def __init__(self, source_directory):
         self.loader = DataLoad(source_directory)
         self.ohlcv_base = self.loader.ohlcvbase
@@ -59,8 +59,8 @@ class FeaturesData:
         return temp_df
 
     @staticmethod
-    def get_feature_datetime_ohe (datetime_index: pd.DatetimeIndex
-                                  ) -> pd.DataFrame:
+    def get_feature_datetime_ohe(datetime_index: pd.DatetimeIndex
+                                 ) -> pd.DataFrame:
         """
         Args:
             datetime_index (pd.DatetimeIndex):      datetimeindex object
@@ -68,7 +68,7 @@ class FeaturesData:
         Returns:
             object:     pd.Dataframe with dummy encoded datetimeindex columns with prefix 'de_'
         """
-        de_df = FeaturesData.split_datetime_data(datetime_index.index)
+        de_df = DataFeatures.split_datetime_data(datetime_index.index)
         cols_names = de_df.columns
         de_df = pd.get_dummies(de_df,
                                columns=cols_names,
@@ -88,7 +88,7 @@ class FeaturesData:
                                           'minute'
                                           )
                              ) -> pd.DataFrame:
-        date_df = FeaturesData.split_datetime_data(input_df.index, cols_create)
+        date_df = DataFeatures.split_datetime_data(input_df.index, cols_create)
         return date_df
 
     @staticmethod
@@ -139,9 +139,14 @@ class FeaturesData:
         features_df["sin_close2"] = np.sin(source_df_2['close'])
         return features_df
 
+    def create_y(self):
+        y_data = None
+        return y_data
+
+
 
 if __name__ == "main":
-    fd = FeaturesData("/source_root")
+    fd = DataFeatures("/source_root")
     x_df = fd.collect_features("ETHUSDT", "BTCUSDT", "1m")
 
 
