@@ -215,7 +215,7 @@ class MainNN:
                                             validation_data=dataset.val_gen,
                                             verbose=self.nn_profile.verbose,
                                             )
-        self.keras_model.save(os.path.join('outputs/', self.nn_profile.experiment_name))
+        self.keras_model.save(os.path.join('outputs/', f"{self.nn_profile.experiment_name}.h5"))
         pass
 
 
