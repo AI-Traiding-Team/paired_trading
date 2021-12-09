@@ -134,6 +134,9 @@ class NNProfile:
     input_shape: Tuple = None
     num_classes: int = 2
     verbose: int = 1
+    model_file_name: str = ''
+    # es = EarlyStopping(monitor='val_mse', mode='min', patience=start_patience, restore_best_weights=True, verbose=1)
+    # callbacks = [es]
     pass
 
 
@@ -143,6 +146,8 @@ class MainNN:
         self.input_shape = None
         self.nn_profile = nn_profile
         self.history = None
+        self.history: dict = {}
+        self.predict = np.array()
         self.keras_model = tf.keras.models.Model
         self.optimizer = None
 
@@ -218,10 +223,34 @@ class MainNN:
         self.keras_model.save(os.path.join('outputs/', f"{self.nn_profile.experiment_name}.h5"))
         pass
 
+    def get_predict(self, dataset: DataSet):
+        self.predict = self.keras_model.predict(dataset.test_gen)
+
+        # plt.minorticks_on()
+        # # Customize the major grid
+        # plt.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+        # # Customize the minor grid
+        # plt.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+        # # for symbol in symbols_combo:
+        #
+        # dif = self.predict - dataset.y_Test
+        # plt.plot(diff_df, label="График отклонения предсказания от реальных данных")
+        #
+        # plt.legend()
+        # if savepath is None:
+        #     plt.show()
+        # else:
+        #     path_filename = os.path.join(savepath, f"{symbols_combo[0]}-{symbols_combo[1]}-{timeframe}.png")
+        #     plt.savefig(path_filename)
+        #     plt.show()
+
+        print(self.predict)
+        pass
 
 
 if __name__ == "__main__":
     # model = get_regression_model()
     test_nn_profile = NNProfile()
     test_nn_profile.experiment_name = "test_NN_regression_ResNetV2"
+    test_nn_profile.model_name = 'model.h5'
     test_nn = MainNN(test_nn_profile)
