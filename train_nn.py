@@ -3,8 +3,18 @@ from datamodeling import *
 from analyze import DataLoad
 from networks import *
 
-__version__ = 0.0003
+__version__ = 0.0004
 
+class TrainNN:
+    def __init__(self):
+        pass
+
+    def train_models(self):
+        pass
+
+    def figures(self):
+
+        pass
 if __name__ == "__main__":
     """
     Usage for DataLoad class
@@ -48,11 +58,14 @@ if __name__ == "__main__":
 
     dataset_1_profile = DSProfile()
     dsc = DSCreator(loaded_crypto_data, dataset_1_profile)
-    dataset_1 = dsc.create_dataset()
-    regression_profile = NNProfile()
+    dts_close_close = dsc.create_dataset()
+    regression_profile = NNProfile("regression")
     regression_profile.experiment_name = "regression_resnet1d_close1_close2"
     test_nn = MainNN(regression_profile)
-    test_nn.train_model(dataset_1)
+    test_nn.train_model(dts_close_close)
+    test_nn.get_predict()
+    # test_nn.figshow()
+    test_nn.show_regression()
 
 
 

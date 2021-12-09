@@ -80,7 +80,7 @@ class TSDataGenerator(TimeseriesGenerator):
         pass
 
     def calc_shape(self):
-        index = 1
+        index = 0
         i = (self.start_index + self.batch_size * self.stride * index)
         rows = np.arange(i, min(i + self.batch_size *
                                 self.stride, self.end_index + 1), self.stride)
@@ -122,8 +122,8 @@ class DataSet:
         self.y_Val = None
         self.x_Test = None
         self.y_Test = None
-        self.features_scaler = None
-        self.targets_scaler = None
+        self.features_scaler = object
+        self.targets_scaler = object
         self.train_gen = None
         self.val_gen = None
         self.test_gen = None
@@ -214,7 +214,7 @@ class DSCreator:
                                                 start_index=self.dataset_profile.tsg_start_index,
                                                 overlap=self.dataset_profile.tsg_overlap,
                                                 )
-        return self.dataset.val_gen
+        return self.dataset.test_gen
 
     def create_dataset(self) -> DataSet:
         self.dataset.dataset_profile = DSProfile()
@@ -242,12 +242,32 @@ class DSCreator:
             y_Train_data = y_arr[train_len:, :]
             y_Val_data = y_arr[train_len + self.dataset_profile.gap_timeframes:train_len + self.dataset_profile.gap_timeframes + val_len, :]
             y_Test_data = y_arr[x_arr.shape[0] - test_len:, :]
-            _ = self.get_test_generator(x_Test_data, y_Test_data)
+            x_Test_gen = self.get_test_generator(x_Test_data, y_Test_data)
+            """ Using generator 1 time to have solid data """
+            self.dataset.x_Test, self.dataset.y_Test = self.create_data_from_gen(x_Test_data, y_Test_data)
+            # x_Test_gen = self.get_test_generator(x_Test_data, y_Test_data)
 
-        _ = self.get_train_generator(x_Train_data, y_Train_data)
+        """ Using generator 1 time to have solid data """
+        x_Train_gen = self.get_train_generator(x_Train_data, y_Train_data)
         x_Val_gen = self.get_val_generator(x_Val_data, y_Val_data)
+        self.dataset.x_Train, self.dataset.y_Train = self.create_data_from_gen(x_Train_data, y_Train_data)
+        self.dataset.x_Val, self.dataset.y_Val = self.create_data_from_gen(x_Val_data, y_Val_data)
         self.dataset.input_shape = x_Val_gen.sample_shape
         return self.dataset
+
+    def create_data_from_gen(self, x_arr, y_arr):
+        gen = TSDataGenerator(data=x_arr,
+                              targets=y_arr,
+                              length=self.dataset_profile.tsg_window_length,
+                              sampling_rate=self.dataset_profile.tsg_sampling_rate,
+                              stride=self.dataset_profile.tsg_stride,
+                              start_index=self.dataset_profile.tsg_start_index,
+                              overlap=self.dataset_profile.tsg_overlap,
+                              batch_size=x_arr.shape[0]
+                              )
+        for x_data, y_data in gen:
+            pass
+        return x_data, y_data
 
     def save_dataset_arrays(self, path_filename):
         pass
