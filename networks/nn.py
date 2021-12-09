@@ -132,6 +132,7 @@ class NNProfile:
     input_shape: Tuple = None
     num_classes: int = 2
     verbose: int = 1
+    model_file_name: str = ''
     # es = EarlyStopping(monitor='val_mse', mode='min', patience=start_patience, restore_best_weights=True, verbose=1)
     # callbacks = [es]
     pass
@@ -143,8 +144,11 @@ class MainNN:
         self.input_shape = None
         self.nn_profile = nn_profile
         self.history: dict = {}
+        self.predict = np.array()
         self.keras_model = tf.keras.models.Model
         self.optimizer = None
+        if os.path.exists(file_name):
+            self.keras_model.load_weights(file_name)
 
     def set_model(self):
         if self.nn_profile.optimizer =='Adam':
@@ -185,9 +189,14 @@ class MainNN:
 
         pass
 
+    def get_predict(self, dataset: DataSet):
+        self.predict = self.keras_model.predict(dataset.test_gen)
+        print(self.predict)
+        pass
 
 if __name__ == "__main__":
     # model = get_regression_model()
     test_nn_profile = NNProfile()
     test_nn_profile.experiment_name = "test_NN_regression_ResNetV2"
+    test_nn_profile.model_name = 'model.h5'
     test_nn = MainNN(test_nn_profile)
