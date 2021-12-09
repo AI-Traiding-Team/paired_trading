@@ -12,6 +12,8 @@ from dataclasses import dataclass
 
 __version__ = 0.0012
 
+sns.set(style='ticks')
+
 
 @dataclass
 class TradeConstants:
@@ -294,22 +296,27 @@ class Analyze(DataLoad):
                     plt.show()
         pass
 
-    def show_correlation(self, usecol='close', time_frame='15m'):
-        data_df = pd.DataFrame()
-        data = list()
-        print()
-        for name, ohlcv_obj in self.ohlcvbase.items():
-            data_arr = ohlcv_obj.df[usecol].values
-            data.append(data_arr)
+    def show_correlation(self, usecol='close'):
+        merge_df = pd.DataFrame()
+        for name, ohlcv in self.ohlcvbase.items():
+            if merge_df.shape == (0, 0):
+                merge_df.index = ohlcv.df.index
+                merge_df.index.name = ohlcv.df.index.name
+                merge_df[name] = ohlcv.df[usecol]
+            else:
+                temp = pd.DataFrame()
+                temp.index = ohlcv.df.index
+                temp.index.name = ohlcv.df.index.name
+                temp[name] = ohlcv.df[usecol]
+                merge_df = pd.merge(merge_df, temp, on='datetimeindex')
+        correlation_matrix = [[0] * len(merge_df.columns) for i in range(len(merge_df.columns))]
+        for i, col1 in enumerate(merge_df.columns):
+            for j, col2 in enumerate(merge_df.columns):
+                correlation_matrix[i][j] = np.corrcoef(merge_df[col1].values, merge_df[col2].values)[0, 1]
 
-                #data_df[name] = ohlcv_obj.df[usecol].copy()
-        #dv = data_df.values
-        print()
-       # correlation_matrix = np.corrcoef(data, data)
-       # sns.heatmap(correlation_matrix, center=0, vmin=0, vmax=1)
-        pass
-
-
+        plot = sns.heatmap(correlation_matrix, center=0)
+        fig = plot.get_figure()
+        fig.savefig('correlation.png')
     """
     0. Берем модули отклонений
     1. Размечает все что по модулю меньше комиссии как 0
