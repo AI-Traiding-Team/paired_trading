@@ -241,6 +241,28 @@ class DataLoad(object):
             self.ohlcvbase.update({f"{file_list['pair'][index]}-{file_list['interval'][index]}": ohlcv})
         pass
 
+    def check_and_repair(self, do_repair=True):
+        # delete duplicates from dataframe
+        for name, ohlcv in self.ohlcvbase.items():
+            ohlcv.df['datetime'] = ohlcv.df.index
+            ohlcv.df = ohlcv.df.drop_duplicates(subset='datetime')
+            time_intervals_column = ohlcv.df.index
+            time_intervals = pd.date_range(ohlcv.df.index[0], ohlcv.df.index[-1], freq='15T')
+            for inter in time_intervals:
+                if inter not in time_intervals_column:
+                    ohlcv.df = pd.concat([ohlcv.df, pd.DataFrame([inter], columns=['datetime'])], ignore_index = True)
+                    # ohlcv.df = pd.concat(ohlcv.df, pd.DataFrame([np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, inter],
+                    #         columns=['open', 'high', 'low', 'close', 'volume', datetime']),
+                    #           ignore_index=True)
+            ohlcv.df.reset_index
+            ohlcv.df = ohlcv.df.sort_values(by=['datetime'])
+            ohlcv.df.index = ohlcv.df['datetime']
+            ohlcv.df = ohlcv.df.drop(columns=['datetime'])
+            ohlcv.df.index.name = 'datetimeindex'
+            if do_repair:
+                ohlcv.df = ohlcv.df.fillna(method="ffill")
+
+
 
 class Analyze(DataLoad):
     def show_all_data(self, usecol='close'):
@@ -302,14 +324,22 @@ class Analyze(DataLoad):
         for name, ohlcv in self.ohlcvbase.items():
             if merge_df.shape == (0, 0):
                 merge_df.index = ohlcv.df.index
+                interval = pd.date_range(ohlcv.df.index[0], ohlcv.df.index[-1], freq='15T')
+                merge_df.index = interval
                 merge_df.index.name = ohlcv.df.index.name
-                merge_df[name] = ohlcv.df[usecol]
-            else:
-                temp = pd.DataFrame()
-                temp.index = ohlcv.df.index
-                temp.index.name = ohlcv.df.index.name
-                temp[name] = ohlcv.df[usecol]
-                merge_df = pd.merge(merge_df, temp, on='datetimeindex')
+
+            temp = pd.DataFrame()
+            temp.index = ohlcv.df.index
+            temp.index.name = ohlcv.df.index.name
+            temp[name] = ohlcv.df[usecol]
+
+            merge_df = pd.merge(merge_df, temp,  how='inner', left_on=('datetimeindex'), right_on=('datetimeindex'))
+            dif_list = merge_df.index.to_list()
+            print('len dataset', len(dif_list))
+            unique_values, counted_values = np.unique(dif_list, return_counts=True)
+            """ first checking only for main pool items """
+            duplicate_values = unique_values[counted_values > 1]
+            print(len(duplicate_values))
         correlation_matrix = [[0] * len(merge_df.columns) for i in range(len(merge_df.columns))]
         for i, col1 in enumerate(merge_df.columns):
             for j, col2 in enumerate(merge_df.columns):
@@ -417,6 +447,7 @@ if __name__ == '__main__':
                        start_period='2021-09-01 00:00:00',
                        end_period='2021-12-05 23:59:59'
                        )
+    show_data.check_and_repair()
     # show_data.show_all_data()
     # show_data.show_combinations_diff(savepath="/home/cubecloud/Python/projects/paired_trading/analyze/pics")
     #show_data.diff_calculation()
