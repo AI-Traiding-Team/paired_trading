@@ -13,7 +13,7 @@ from datamodeling.dscreator import DataSet
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-__version__ = 0.0010
+__version__ = 0.0011
 
 
 # def get_regression_model(batch_shape=(0, 299, 299, 3),
@@ -205,7 +205,7 @@ class MainNN:
     def figshow(self, y_pred, y_true, delta):
         fig = plt.figure(figsize=(26, 7))
         sns.set_style("white")
-        ax1 = fig.add_subplot(1, 2, 1)
+        ax1 = fig.add_subplot(1, 3, 1)
         ax1.set_axisbelow(True)
         ax1.minorticks_on()
         ax1.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
@@ -226,7 +226,7 @@ class MainNN:
             lr_list = [x * 1000 for x in self.history.history["lr"]]
             plt.plot(N, lr_list, linestyle=':', color='green', label="lr * 1000")
         plt.title(f"Training Loss and Mean Absolute Error")
-        ax2 = fig.add_subplot(1, 2, 2)
+        ax2 = fig.add_subplot(1, 3, 2)
         ax2.set_axisbelow(True)
         ax2.minorticks_on()
         ax2.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
@@ -234,7 +234,14 @@ class MainNN:
         plt.plot(y_pred, linestyle='--', color='red', label="Prediction")
         plt.plot(y_true, linestyle='--', color='blue', label="True")
         plt.plot(delta, linestyle='--', color='green', label="Delta")
-        plt.title(f"Prediction, True and Delta")
+        plt.title(f"Prediction and True ")
+        ax3 = fig.add_subplot(1, 3, 3)
+        ax3.set_axisbelow(True)
+        ax3.minorticks_on()
+        ax3.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+        ax3.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+        plt.plot(delta, linestyle='--', color='green', label="Delta")
+        plt.title(f"Delta")
         plt.legend()
         plt.show()
         pass
@@ -254,12 +261,12 @@ class MainNN:
         mean_value = sum(y_pred_unscaled) / len(y_pred_unscaled)
         delta = abs(y_pred_unscaled - y_true_unscaled)
         self.figshow(y_pred_unscaled, y_true_unscaled, delta)
-        # mean_delta = sum(delta) / len(delta)
-        # mean_value_info = f"Среднее значение: {round(mean_value, 2)} \n"
-        # mean_delta_info = f"Средняя ошибка: {round(mean_delta, 2)} \n"
-        # mean_percent_info = f"Средний процент ошибки: {round(100 * mean_delta / mean_value, 2)}%"
-        # text_data = mean_value_info + mean_delta_info + mean_percent_info
-        # print(text_data)
+        mean_delta = sum(delta) / len(delta)
+        mean_value_info = f"Среднее значение: {round(mean_value, 2)} \n"
+        mean_delta_info = f"Средняя ошибка: {round(mean_delta, 2)} \n"
+        mean_percent_info = f"Средний процент ошибки: {round(100 * mean_delta / mean_value, 2)}%"
+        text_data = mean_value_info + mean_delta_info + mean_percent_info
+        print(text_data)
 
 
 
