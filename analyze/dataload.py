@@ -301,14 +301,22 @@ class Analyze(DataLoad):
         for name, ohlcv in self.ohlcvbase.items():
             if merge_df.shape == (0, 0):
                 merge_df.index = ohlcv.df.index
+                interval = pd.date_range(ohlcv.df.index[0], ohlcv.df.index[-1], freq='15T')
+                merge_df.index = interval
                 merge_df.index.name = ohlcv.df.index.name
-                merge_df[name] = ohlcv.df[usecol]
-            else:
-                temp = pd.DataFrame()
-                temp.index = ohlcv.df.index
-                temp.index.name = ohlcv.df.index.name
-                temp[name] = ohlcv.df[usecol]
-                merge_df = pd.merge(merge_df, temp, on='datetimeindex')
+
+            temp = pd.DataFrame()
+            temp.index = ohlcv.df.index
+            temp.index.name = ohlcv.df.index.name
+            temp[name] = ohlcv.df[usecol]
+
+            merge_df = pd.merge(merge_df, temp,  how='inner', left_on=('datetimeindex'), right_on=('datetimeindex'))
+            dif_list = merge_df.index.to_list()
+            print('len dataset', len(dif_list))
+            unique_values, counted_values = np.unique(dif_list, return_counts=True)
+            """ first checking only for main pool items """
+            duplicate_values = unique_values[counted_values > 1]
+            print(len(duplicate_values))
         correlation_matrix = [[0] * len(merge_df.columns) for i in range(len(merge_df.columns))]
         for i, col1 in enumerate(merge_df.columns):
             for j, col2 in enumerate(merge_df.columns):
