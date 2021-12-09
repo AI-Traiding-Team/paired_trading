@@ -3,6 +3,7 @@ import sys
 import datetime
 import numpy as np
 import pandas as pd
+from pandas import DataFrame as df
 import itertools
 import matplotlib.pyplot as plt
 
@@ -123,13 +124,20 @@ class DataLoad(object):
         self.time_intervals: list = time_intervals
         self.source_directory: str = source_directory
         self.ohlcvbase: dict = {}
-        self.get_all_data()
+        self.all_symbols_close = {}
+        self._get_all_data()
         pass
 
     def get_pair(self, pair_symbols, time_intervals):
         return self.ohlcvbase[f'{pair_symbols}-{time_intervals}'].df
 
-    def get_all_data(self):
+    def get_all_close(self):
+        for timeframe in self.time_intervals:
+            data = [self.ohlcvbase[f"{symbol}-{timeframe}"].df['close'].rename(symbol) for symbol in self.pairs_symbols]
+            self.all_symbols_close.update({f'{timeframe}': pd.concat(data, axis=1)})
+
+
+    def _get_all_data(self):
         for timeframe in self.time_intervals:
             for symbol in self.pairs_symbols:
                 source_filename = f'{symbol}-{timeframe}-data.csv'
