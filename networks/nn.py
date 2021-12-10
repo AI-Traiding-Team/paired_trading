@@ -245,7 +245,7 @@ class MainNN:
         if 'accuracy' in self.history.history:
             plt.plot(N, self.history.history["val_accuracy"], linestyle=':', color='red', label="val_accuracy")
         if 'val_loss' in self.history.history:
-            plt.plot(N, self.history.history["val_loss"], linestyle=':', color='blue', label="val_accuracy")
+            plt.plot(N, self.history.history["val_loss"], linestyle=':', color='blue', label="val_loss")
         if 'lr' in self.history.history:
             lr_list = [x * 1000 for x in self.history.history["lr"]]
             plt.plot(N, lr_list, linestyle=':', color='green', label="lr * 1000")
@@ -317,7 +317,7 @@ class MainNN:
         if 'accuracy' in self.history.history:
             plt.plot(N, self.history.history["val_accuracy"], linestyle=':', color='red', label="val_accuracy")
         if 'val_loss' in self.history.history:
-            plt.plot(N, self.history.history["val_loss"], linestyle=':', color='blue', label="val_accuracy")
+            plt.plot(N, self.history.history["val_loss"], linestyle=':', color='blue', label="val_loss")
         if 'lr' in self.history.history:
             lr_list = [x * 1000 for x in self.history.history["lr"]]
             plt.plot(N, lr_list, linestyle=':', color='green', label="lr * 1000")

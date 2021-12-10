@@ -146,7 +146,7 @@ class DataLoad(object):
         self.source_directory: str = source_directory
         self.ohlcvbase: dict = {}
         self.all_symbols_close = {}
-        self._get_all_data()
+        self.get_all_data()
         pass
 
     def get_pair(self, pair_symbols, time_intervals):
