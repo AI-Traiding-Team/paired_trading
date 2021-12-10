@@ -152,7 +152,6 @@ class DataLoad(object):
     def get_pair(self, pair_symbols, time_intervals):
         return self.ohlcvbase[f'{pair_symbols}-{time_intervals}'].df
 
-    # TODO: Bug FIX strange behavior if choose only 2 pairs in initial list
     def get_all_data(self):
         dir_list = list()
         file_list = {'interval': list(),
@@ -194,7 +193,9 @@ class DataLoad(object):
                     else:
                         is_in_pairs = False
                         for pair in self.pairs_symbols:
-                            is_in_pairs |= file.startswith(pair)
+                            if file.startswith(pair):
+                                is_in_pairs = True
+                                break
                         if is_in_pairs:
                             file_list['interval'].append(dir_name)
                             file_list['pair'].append(pair)
