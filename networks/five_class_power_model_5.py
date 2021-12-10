@@ -3,7 +3,7 @@ from datamodeling import *
 from analyze import DataLoad
 from networks import *
 
-__version__ = 0.0001
+__version__ = 0.0002
 
 
 class TrainNN:
@@ -18,6 +18,15 @@ class TrainNN:
         dataset_3_profile = DSProfile()
         dataset_3_profile.Y_data = "close1-close2_power"
         dataset_3_profile.timeframe = "1m"
+
+        """ Default options for dataset window"""
+        dataset_3_profile.tsg_window_length = 40
+        dataset_3_profile.tsg_sampling_rate = 1
+        dataset_3_profile.tsg_stride = 1
+        dataset_3_profile.tsg_start_index = 0
+        dataset_3_profile.tsg_overlap = 0
+        """ Warning! Change this qty if using .shift() more then 2 """
+        dataset_3_profile.gap_timeframes = 3
 
         dsc = DSCreator(loaded_crypto_data, dataset_3_profile)
         dts_close1_close2_power = dsc.create_dataset()

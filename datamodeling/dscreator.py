@@ -23,7 +23,7 @@ from analyze.dataload import DataLoad
 from datamodeling.datafeatures import DataFeatures, DSProfile
 
 
-__version__ = 0.0008
+__version__ = 0.0009
 
 
 def get_local_timezone_name():
@@ -215,29 +215,22 @@ class DSCreator:
                                                 )
         return self.dataset.test_gen
 
-    def create_dataset(self) -> DataSet:
-        self.dataset.dataset_profile = DSProfile()
-        self.dataset.features_df = self.features.collect_features(self.dataset_profile)
-        if self.dataset_profile.Y_data == "close1-close2":
-            self.dataset.y_df = self.features.create_y_close1_close2_sub()
-        elif self.dataset_profile.Y_data == "close1-close2_trend":
-            self.dataset.y_df = self.features.create_y_close1_close2_sub_trend()
-        elif self.dataset_profile.Y_data == "close1-close2_power":
-            self.dataset.y_df = self.features.create_y_close1_close2_sub_power()
-        else:
-            msg = "Error: Unknown dataset preparation type"
-            sys.exit(msg)
-
+    def create_close1_close2_power(self):
         self.dataset.name = f'{self.dataset_profile.use_symbols_pairs[0]}-{self.dataset_profile.use_symbols_pairs[1]}-{self.dataset_profile.timeframe}'
-        y_temp = self.dataset.y_df.values.reshape(-1, 1)
-
         if self.dataset_profile.scaler == "robust":
             self.dataset.features_scaler = RobustScaler().fit(self.dataset.features_df.values)
-            self.dataset.targets_scaler = RobustScaler().fit(y_temp)
+            self.dataset.targets_scaler = None
+        else:
+            msg = "Error: Unknown scaler preparation type"
+            sys.exit(msg)
 
         x_arr = self.dataset.features_scaler.transform(self.dataset.features_df.values)
         """ check """
-        y_arr = self.dataset.targets_scaler.transform(y_temp)
+        y_arr = self.dataset.y_df.values
+        self.prepare_datagens(x_arr, y_arr)
+        pass
+
+    def prepare_datagens(self, x_arr, y_arr):
         train_len, val_len, test_len = self.split_data_df()
         if test_len is None:
             x_Train_data = x_arr[train_len:, :]
@@ -262,6 +255,37 @@ class DSCreator:
         self.dataset.x_Train, self.dataset.y_Train = self.create_data_from_gen(x_Train_data, y_Train_data)
         self.dataset.x_Val, self.dataset.y_Val = self.create_data_from_gen(x_Val_data, y_Val_data)
         self.dataset.input_shape = x_Val_gen.sample_shape
+        pass
+
+    def create_dataset(self) -> DataSet:
+        self.dataset.dataset_profile = DSProfile()
+        self.dataset.features_df = self.features.collect_features(self.dataset_profile)
+        if self.dataset_profile.Y_data == "close1-close2":
+            self.dataset.y_df = self.features.create_y_close1_close2_sub()
+        elif self.dataset_profile.Y_data == "close1-close2_trend":
+            self.dataset.y_df = self.features.create_y_close1_close2_sub_trend()
+        elif self.dataset_profile.Y_data == "close1-close2_power":
+            self.dataset.y_df = self.features.create_y_close1_close2_sub_power()
+            self.create_close1_close2_power()
+            return self.dataset
+        else:
+            msg = "Error: Unknown dataset preparation type"
+            sys.exit(msg)
+
+        self.dataset.name = f'{self.dataset_profile.use_symbols_pairs[0]}-{self.dataset_profile.use_symbols_pairs[1]}-{self.dataset_profile.timeframe}'
+        y_temp = self.dataset.y_df.values.reshape(-1, 1)
+
+        if self.dataset_profile.scaler == "robust":
+            self.dataset.features_scaler = RobustScaler().fit(self.dataset.features_df.values)
+            self.dataset.targets_scaler = RobustScaler().fit(y_temp)
+        else:
+            msg = "Error: Unknown scaler preparation type"
+            sys.exit(msg)
+
+        x_arr = self.dataset.features_scaler.transform(self.dataset.features_df.values)
+        """ check """
+        y_arr = self.dataset.targets_scaler.transform(y_temp)
+        self.prepare_datagens(x_arr, y_arr)
         return self.dataset
 
     def create_data_from_gen(self, x_arr, y_arr):

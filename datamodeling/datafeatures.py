@@ -7,7 +7,7 @@ from analyze.dataload import DataLoad, TradeConstants
 from dataclasses import dataclass
 # sys.path.insert(1, os.path.join(os.getcwd(), 'analyze'))
 
-__version__ = 0.0006
+__version__ = 0.0008
 
 
 @dataclass(init=True)
@@ -219,10 +219,11 @@ class DataFeatures:
         sub_df_max = sub_df.abs().max().max()
         sub_df_step = (sub_df_max-sub_df_min)/5
         power_list = list(np.arange(sub_df_min, sub_df_max, sub_df_step))
-        power_list.append(sub_df_max)
+        power_list.insert(5, sub_df_max)
         for idx in range(5):
-            sub_df.loc[(sub_df["close"] >= power_list[idx]) & (sub_df["close"] < power_list[idx+1]), "close"] = idx+1
-        self.y_df = sub_df.drop(index=self.drop_idxs)
+            sub_df.loc[(sub_df["close"] >= power_list[idx]) & (sub_df["close"] < power_list[idx+1]+0.0001), "close"] = idx
+        ohe = pd.get_dummies(sub_df["close"], dtype=float)
+        self.y_df = ohe.drop(index=self.drop_idxs)
         return self.y_df.copy()
 
 # if __name__ == "main":
