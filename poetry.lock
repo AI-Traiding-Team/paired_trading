@@ -21,6 +21,24 @@ python-versions = "*"
 six = ">=1.6.1,<2.0"
 
 [[package]]
+name = "backtesting"
+version = "0.3.2"
+description = "Backtest trading strategies in Python"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+bokeh = ">=1.4.0"
+numpy = "*"
+pandas = ">0.25.0"
+
+[package.extras]
+dev = ["flake8", "coverage", "mypy"]
+doc = ["pdoc3", "jupytext (>=1.3)", "nbconvert", "ipykernel", "jupyter-client"]
+test = ["seaborn", "matplotlib", "scikit-learn", "scikit-optimize"]
+
+[[package]]
 name = "backtrader"
 version = "1.9.76.123"
 description = "BackTesting Engine"
@@ -787,7 +805,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.10"
-content-hash = "915813000ab3bcf6e6814b4fe7406015015a535fedd040b8252ff362bdf39b7c"
+content-hash = "9db75d1d59f53a58860c45dc8d48775b6ffa816b97b1fbcf8cfd1b15897f0e5d"
 
 [metadata.files]
 absl-py = [
@@ -797,6 +815,9 @@ absl-py = [
 astunparse = [
     {file = "astunparse-1.6.3-py2.py3-none-any.whl", hash = "sha256:c2652417f2c8b5bb325c885ae329bdf3f86424075c4fd1a128674bc6fba4b8e8"},
     {file = "astunparse-1.6.3.tar.gz", hash = "sha256:5ad93a8456f0d084c3456d059fd9a92cce667963232cbf763eac3bc5b7940872"},
+]
+backtesting = [
+    {file = "Backtesting-0.3.2.tar.gz", hash = "sha256:85b0bfccc0cd98fc55712fbccbadcd990bfb42f8e41ee794de91c0a8d9b633b8"},
 ]
 backtrader = [
     {file = "backtrader-1.9.76.123-py2.py3-none-any.whl", hash = "sha256:0dc8912a98352b75122f8d7084bc63ee47f61c2a1d16f506d4d82aee3941297a"},

@@ -190,13 +190,11 @@ class DataLoad(object):
                         file_list['pair'].append(split_file_name[0])
                         file_list['file_name'].append(os.path.join(full_dir_name, file))
                     else:
-                        is_in_pairs = False
                         for pair in self.pairs_symbols:
-                            is_in_pairs |= file.startswith(pair)
-                        if is_in_pairs:
-                            file_list['interval'].append(dir_name)
-                            file_list['pair'].append(pair)
-                            file_list['file_name'].append(os.path.join(full_dir_name, file))
+                            if file.startswith(pair):
+                                file_list['interval'].append(dir_name)
+                                file_list['pair'].append(pair)
+                                file_list['file_name'].append(os.path.join(full_dir_name, file))
         # or take files from root dir
         else:
             for file in os.listdir(self.source_directory):
