@@ -13,7 +13,7 @@ from datamodeling.dscreator import DataSet
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-__version__ = 0.0011
+__version__ = 0.0012
 
 
 # def get_regression_model(batch_shape=(0, 299, 299, 3),
@@ -78,37 +78,38 @@ __version__ = 0.0011
 #     return new_model
 
 
-@dataclass(init=True)
+@dataclass
 class NNProfile:
-    experiment_name: str = ''
-    experiment_directory = ''
-    optimizer: str = "Adam"
-    learning_rate: float = 1e-3
-    metric: str = "mae"
-    loss: str = 'mse'
-    epochs: int = 50
-    model_type: str = 'regression'
-    input_shape: Tuple = None
-    num_classes: int = 2
-    verbose: int = 1
-    pass
+    def __init__(self, model_type):
+        self.experiment_name: str = ''
+        self.experiment_directory = ''
+        self.optimizer: str = "Adam"
+        self.learning_rate: float = 1e-3
+        self.metric: str = "mae"
+        self.loss: str = 'mse'
+        self.epochs: int = 50
+        self.model_type: str = model_type
+        self.input_shape: Tuple = None
+        self.num_classes: int = 2
+        self.verbose: int = 1
+        self.set_type(model_type)
+        pass
 
-    @classmethod
-    def set_type(cls, model_type):
+    def set_type(self, model_type):
         if model_type == "regression":
-            cls.model_type = model_type
-            cls.metric = 'mae'
-            cls.loss = "mse"
+            self.model_type = model_type
+            self.metric = 'mae'
+            self.loss = "mse"
         elif model_type == "binary_crossentropy":
-            cls.model_type = model_type
-            cls.num_classes = 2
-            cls.metric = 'accuracy'
-            cls.loss = "binary_crossentropy"
+            self.model_type = model_type
+            self.num_classes = 2
+            self.metric = 'accuracy'
+            self.loss = "binary_crossentropy"
         elif model_type == "categorical_crossentropy":
-            cls.model_type = model_type
-            cls.metric = 'accuracy'
-            cls.num_classes = 5
-            cls.loss = "categorical_crossentropy"
+            self.model_type = model_type
+            self.metric = 'accuracy'
+            self.num_classes = 5
+            self.loss = "categorical_crossentropy"
         pass
 
 
@@ -163,20 +164,27 @@ class MainNN:
         elif model_type == "classification":
             x_out = Dense(num_classes, activation='softmax')(x)
         model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
+        self.nn_profile.experiment_name = f"{self.nn_profile.experiment_name}_resnet1d"
         return model
 
     def set_model(self):
-        if self.nn_profile.optimizer =='Adam':
+        if self.nn_profile.optimizer == 'Adam':
             self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.nn_profile.learning_rate)
         if self.nn_profile.model_type == 'regression':
+            self.nn_profile.experiment_name = f"{self.nn_profile.model_type}"
             self.keras_model = self.get_resnet1d_model(input_shape=self.input_shape,
-                                                      num_classes=self.nn_profile.num_classes
-                                                      )
+                                                       num_classes=self.nn_profile.num_classes
+                                                       )
+        elif self.nn_profile.model_type == 'binary_crossentropy':
+            self.nn_profile.experiment_name = f"{self.nn_profile.model_type}"
+            self.keras_model = self.get_resnet1d_model(input_shape=self.input_shape,
+                                                       num_classes=self.nn_profile.num_classes
+                                                       )
 
-            self.keras_model.compile(optimizer=self.optimizer,
-                                     loss=self.nn_profile.loss,
-                                     metrics=[self.nn_profile.metric],
-                                     )
+        self.keras_model.compile(optimizer=self.optimizer,
+                                 loss=self.nn_profile.loss,
+                                 metrics=[self.nn_profile.metric],
+                                 )
         pass
 
     def train_model(self, dataset: DataSet):
@@ -268,7 +276,7 @@ class MainNN:
         # вычисление среднего значения, средней ошибки и процента ошибки
         mean_value = sum(y_pred_unscaled) / len(y_pred_unscaled)
         delta = abs(y_pred_unscaled - y_true_unscaled)
-        delta_percentage = delta/y_true_unscaled
+        delta_percentage = delta / y_true_unscaled
         self.figshow_regression(y_pred_unscaled, y_true_unscaled, delta_percentage)
         mean_delta = sum(delta) / len(delta)
         mean_value_info = f"Среднее значение: {round(mean_value, 2)} \n"
@@ -282,4 +290,3 @@ if __name__ == "__main__":
     test_nn_profile = NNProfile()
     test_nn_profile.experiment_name = "regression_resnet1d_close1_close2"
     test_nn = MainNN(test_nn_profile)
-

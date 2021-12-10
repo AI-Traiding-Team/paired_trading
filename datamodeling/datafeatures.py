@@ -204,17 +204,17 @@ class DataFeatures:
         self.y_df = temp_df.drop(index=self.drop_idxs)
         return self.y_df.copy()
 
-if __name__ == "main":
-    loaded_crypto_data = DataLoad(pairs_symbols=None,
-                                  time_intervals=['15m'],
-                                  source_directory="../source_root",
-                                  start_period='2021-09-01 00:00:00',
-                                  end_period='2021-12-05 23:59:59',
-
-                                  )
-
-    fd = DataFeatures(loaded_crypto_data)
-    profile_1 = DSProfile()
-    x_df = fd.collect_features(profile_1)
+# if __name__ == "main":
+#     loaded_crypto_data = DataLoad(pairs_symbols=None,
+#                                   time_intervals=['15m'],
+#                                   source_directory="../source_root",
+#                                   start_period='2021-09-01 00:00:00',
+#                                   end_period='2021-12-05 23:59:59',
+#
+#                                   )
+#
+#     fd = DataFeatures(loaded_crypto_data)
+#     profile_1 = DSProfile()
+#     x_df = fd.collect_features(profile_1)
 
 
