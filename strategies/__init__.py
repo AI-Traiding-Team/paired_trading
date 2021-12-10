@@ -1,2 +1,3 @@
-from strategies.test_strategy import *
+from .test_strategy import *
+from .superdooper import *
 

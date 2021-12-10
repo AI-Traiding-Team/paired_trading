@@ -54,6 +54,7 @@ class OHLCVData:
         self.df = pd.DataFrame()
         self.__set_symbol_interval_names()
         self.load()
+        self.calc_min_max_digits()
         pass
 
     def __set_symbol_interval_names(self):
@@ -130,6 +131,9 @@ class OHLCVData:
         self.df.to_csv(path_filename)
         pass
 
+    def calc_min_max_digits(self):
+        self.min_digit_len = len(int(self.df.close.min()).__str__())
+        self.max_digit_len = len(int(self.df.close.max()).__str__())
 
 class DataLoad(object):
     def __init__(self,
@@ -149,7 +153,8 @@ class DataLoad(object):
         pass
 
     def get_pair(self, pair_symbols, time_intervals):
-        return self.ohlcvbase[f'{pair_symbols}-{time_intervals}'].df
+        pair = self.ohlcvbase[f'{pair_symbols}-{time_intervals}']
+        return pair.df, pair.min_digit_len, pair.max_digit_len
 
     def get_all_data(self):
         dir_list = list()
