@@ -5,6 +5,7 @@ import pandas as pd
 from typing import Tuple
 from analyze.dataload import DataLoad, TradeConstants
 from dataclasses import dataclass
+from sklearn.preprocessing import QuantileTransformer
 # sys.path.insert(1, os.path.join(os.getcwd(), 'analyze'))
 
 __version__ = 0.0008
@@ -205,6 +206,7 @@ class DataFeatures:
         self.y_df = temp_df.drop(index=self.drop_idxs)
         return self.y_df.copy()
 
+
     # 0 if Close1 - Close2 < 0 и 1 if Close1 - Close2 >= 0 - в одном столбце
     def create_y_close1_close2_sub_trend(self):
         temp_df = pd.DataFrame()
@@ -227,21 +229,84 @@ class DataFeatures:
     def create_y_close1_close2_sub_power(self):
         temp_df = pd.DataFrame()
         temp_df["close1"] = self.source_df_1["close"]
+        temp_df.insert(1, "close2", self.source_df_2["close"].values*10)
+        temp_df["close1-close2"] = temp_df["close1"]-temp_df["close2"]
+        temp_df["close1-close2_pct_change"] = temp_df["close1-close2"].pct_change(1).abs()
+        # normalized_df_1 = (self.source_df_1["close"] - self.source_df_1["close"].min()) / (
+        #         self.source_df_1["close"].max() - self.source_df_1["close"].min())
+        # normalized_df_2 = (self.source_df_2["close"] - self.source_df_2["close"].min()) / (
+        #         self.source_df_2["close"].max() - self.source_df_2["close"].min())
+        # sub_df = pd.DataFrame()
+        # sub_df["close"] = pd.DataFrame(normalized_df_1 - normalized_df_2).abs()
+        # sub_df["close"] = sub_df["close"].pct_change(1).abs()
+
+        # temp_df = pd.DataFrame()
+        temp_df["close1"] = self.source_df_1["close"]
         temp_df.insert(1, "close2", self.source_df_2["close"].values)
         temp_df["close1/close2"] = temp_df["close1"]/temp_df["close2"]
-        temp_df["close1/close2_pct"] = temp_df["close1/close2"].pct_change(1)
-        normalized_df = (temp_df["close1/close2_pct"] - temp_df["close1/close2_pct"].min()) / (
-                temp_df["close1/close2_pct"].max() - temp_df["close1/close2_pct"].min())
-        temp_df_min = normalized_df.min().min()
-        temp_df_max = normalized_df.max().max()
-        all_range = temp_df_max-temp_df_min
-        temp_df_step = all_range/3
-        power_list = list(np.arange(temp_df_min, temp_df_max, temp_df_step))
-        power_list.insert(3, temp_df_max)
-        temp_df = normalized_df
-        for idx in range(1, 4):
-            temp_df.loc[(temp_df > power_list[idx-1]) & (temp_df <= power_list[idx])] = idx-1
+        temp_df["close1/close2_pct_change"] = (temp_df["close1"]/temp_df["close2"]).pct_change(1)
+        temp_df["close1/close2_pct_change"] = temp_df["close1/close2_pct_change"].abs()
         temp_df = temp_df.drop(index=self.drop_idxs)
+
+        # y_list = list(temp_df["close1/close2_pct"].values)
+        # classes_idx_dict = {0: [],
+        #                     1: [],
+        #                     2: [],
+        #                     3: [],
+        #                     4: [],
+        #                     }
+        # classes_len_dict = {0: 0,
+        #                     1: 0,
+        #                     2: 0,
+        #                     3: 0,
+        #                     4: 0,
+        #                     }
+        # y_len = len(y_list)
+        # for class_num in range(4):
+        #     classes_len_dict[class_num] = y_len/5
+        # classes_len_dict[5] = y_len - (y_len/5*4)
+        # masking = np.zeros(y_len, dtype=np.bool)
+        # y_masked = np.ma.MaskedArray(y_list, mask=masking)
+        # for class_num in range(5):
+        #     print(class_num)
+        #     for _ in range(classes_len_dict[class_num]):
+        #         idx = y_masked.argmin()
+        #         classes_idx_dict[class_num].append(idx)
+        #         y_masked.mask[idx] = True
+        # y_classes = np.zeros(y_len, dtype=np.int)
+
+        # for class_num in range(5):
+        #     for idx in classes_dict[class_num]:
+        #         y_classes[idx] = class_num
+        # print(y_classes)
+
+        # quantile_transformer = QuantileTransformer(output_distribution='normal',
+        #                                            random_state=42)
+        # y_arr = temp_df["close1/close2_pct"].values
+        # y_arr = y_arr.reshape(-1, 1)
+        #
+        #
+        # normalized_df = (temp_df["close1/close2_pct"] - temp_df["close1/close2_pct"].min()) / (
+        #         temp_df["close1/close2_pct"].max() - temp_df["close1/close2_pct"].min())
+        # y_arr = normalized_df.values
+        # y_arr = y_arr.reshape(-1, 1)
+        # y_trans = quantile_transformer.fit_transform(y_arr)
+        # temp_df_min = y_trans.min().min()
+        # temp_df_max = y_trans.max().max()
+        # # temp_df_min = normalized_df.min().min()
+        # # temp_df_max = normalized_df.max().max()
+        # all_range = temp_df_max-temp_df_min
+        # temp_df_step = all_range/5
+        # power_list = list(np.arange(temp_df_min, temp_df_max, temp_df_step))
+        # power_list.insert(5, temp_df_max)
+        # # temp_df = normalized_df
+        # y_trans = np.squeeze(y_trans)
+        # y_df = pd.DataFrame(data=y_trans, columns=["power"])
+        # y_df.index = temp_df.index
+        # temp_df = y_df
+        # for idx in range(1, 6):
+        #     temp_df.loc[(temp_df["power"] > power_list[idx-1]) & (temp_df["power"] <= power_list[idx])] = idx-1
+        # # temp_df = temp_df.drop(index=self.drop_idxs)
         unique = np.unique(temp_df.iloc[:,], return_counts=True )
         ohe = pd.get_dummies(temp_df, dtype=float)
         self.y_df = ohe
