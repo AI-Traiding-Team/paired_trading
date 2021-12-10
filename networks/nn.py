@@ -13,7 +13,7 @@ from datamodeling.dscreator import DataSet
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-__version__ = 0.0012
+__version__ = 0.0013
 
 
 # def get_regression_model(batch_shape=(0, 299, 299, 3),
@@ -191,7 +191,7 @@ class MainNN:
         self.dataset = dataset
         self.input_shape = dataset.input_shape
         self.set_model()
-        path_filename = os.path.join(os.getcwd(), 'networks/outputs', f"{self.nn_profile.experiment_name}_NN.png")
+        path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.nn_profile.experiment_name}_NN.png")
         tf.keras.utils.plot_model(self.keras_model,
                                   to_file=path_filename,
                                   show_shapes=True,
@@ -204,14 +204,14 @@ class MainNN:
                                             validation_data=dataset.val_gen,
                                             verbose=self.nn_profile.verbose,
                                             )
-        path_filename = os.path.join(os.getcwd(), 'networks/outputs', f"{self.nn_profile.experiment_name}.h5")
+        path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.nn_profile.experiment_name}.h5")
         self.keras_model.save(path_filename)
         pass
 
     def get_predict(self):
         self.x_Test = self.dataset.x_Test
         self.y_Test = self.dataset.y_Test
-        path_filename = os.path.join(os.getcwd(), 'networks/outputs', f"{self.nn_profile.experiment_name}.h5")
+        path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.nn_profile.experiment_name}.h5")
         tf.keras.models.load_model(path_filename)
         self.y_Pred = self.keras_model.predict(self.x_Test)
         return self.y_Pred

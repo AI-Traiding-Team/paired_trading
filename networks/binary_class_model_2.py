@@ -24,7 +24,7 @@ class TrainNN:
 
         binary_profile = NNProfile("binary_crossentropy")
         binary_profile.experiment_name = f"{binary_profile.experiment_name}_close1_close2_trend"
-        binary_profile.epochs = 10
+        binary_profile.epochs = 15
         test_nn = MainNN(binary_profile)
         test_nn.train_model(dts_close1_close2_trend)
         pred = test_nn.get_predict()
