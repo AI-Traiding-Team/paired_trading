@@ -9,8 +9,9 @@ class TestStrategy(Strategy):
     )
 
     def __init__(self):
-        sma1 = bt.ind.SMA(period=self.p.pfast)  # fast moving average
-        sma2 = bt.ind.SMA(period=self.p.pslow)  # slow moving average
+        sma1 = bt.ind.SMA(period=self.p.pfast, subplot=True)  # fast moving average
+        sma2 = bt.ind.SMA(period=self.p.pslow, subplot=True)  # slow moving average
+        bt.ind.SMA(period=15,  plotmaster=sma1)
         self.crossover = bt.ind.CrossOver(sma1, sma2)  # crossover signal
 
     def next(self):
