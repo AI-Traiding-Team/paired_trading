@@ -13,7 +13,7 @@ from datamodeling.dscreator import DataSet
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-__version__ = 0.0013
+__version__ = 0.0014
 
 
 # def get_regression_model(batch_shape=(0, 299, 299, 3),
@@ -161,7 +161,7 @@ class MainNN:
             x_out = Dense(1, activation='linear')(x)
         elif model_type == "binary_crossentropy":
             x_out = Dense(1, activation='sigmoid')(x)
-        elif model_type == "classification":
+        elif model_type == "categorical_crossentropy":
             x_out = Dense(num_classes, activation='softmax')(x)
         model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
         self.nn_profile.experiment_name = f"{self.nn_profile.experiment_name}_resnet1d"
@@ -173,14 +173,24 @@ class MainNN:
         if self.nn_profile.model_type == 'regression':
             self.nn_profile.experiment_name = f"{self.nn_profile.model_type}"
             self.keras_model = self.get_resnet1d_model(input_shape=self.input_shape,
-                                                       num_classes=self.nn_profile.num_classes
+                                                       num_classes=self.nn_profile.num_classes,
+                                                       model_type=self.nn_profile.model_type,
                                                        )
         elif self.nn_profile.model_type == 'binary_crossentropy':
             self.nn_profile.experiment_name = f"{self.nn_profile.model_type}"
             self.keras_model = self.get_resnet1d_model(input_shape=self.input_shape,
-                                                       num_classes=self.nn_profile.num_classes
+                                                       num_classes=self.nn_profile.num_classes,
+                                                       model_type=self.nn_profile.model_type
                                                        )
-
+        elif self.nn_profile.model_type == 'categorical_crossentropy':
+            self.nn_profile.experiment_name = f"{self.nn_profile.model_type}"
+            self.keras_model = self.get_resnet1d_model(input_shape=self.input_shape,
+                                                       num_classes=self.nn_profile.num_classes,
+                                                       model_type=self.nn_profile.model_type
+                                                       )
+        else:
+            msg = "Error: Unknown task type for network preparation"
+            sys.exit(msg)
         self.keras_model.compile(optimizer=self.optimizer,
                                  loss=self.nn_profile.loss,
                                  metrics=[self.nn_profile.metric],
@@ -204,14 +214,14 @@ class MainNN:
                                             validation_data=dataset.val_gen,
                                             verbose=self.nn_profile.verbose,
                                             )
-        path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.nn_profile.experiment_name}.h5")
+        path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.nn_profile.experiment_name}_{self.dataset.name}.h5")
         self.keras_model.save(path_filename)
         pass
 
     def get_predict(self):
         self.x_Test = self.dataset.x_Test
         self.y_Test = self.dataset.y_Test
-        path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.nn_profile.experiment_name}.h5")
+        path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.nn_profile.experiment_name}_{self.dataset.name}.h5")
         tf.keras.models.load_model(path_filename)
         self.y_Pred = self.keras_model.predict(self.x_Test)
         return self.y_Pred
@@ -265,6 +275,75 @@ class MainNN:
     def show_regression(self):
         """
         Show evaluation for regression task
+
+        Returns
+        -------
+        None
+        """
+        y_pred_unscaled = self.dataset.targets_scaler.inverse_transform(self.y_Pred).flatten()
+        y_true_unscaled = self.dataset.targets_scaler.inverse_transform(self.dataset.y_Test).flatten()
+
+        # вычисление среднего значения, средней ошибки и процента ошибки
+        mean_value = sum(y_pred_unscaled) / len(y_pred_unscaled)
+        delta = abs(y_pred_unscaled - y_true_unscaled)
+        delta_percentage = delta / y_true_unscaled
+        self.figshow_regression(y_pred_unscaled, y_true_unscaled, delta_percentage)
+        mean_delta = sum(delta) / len(delta)
+        mean_value_info = f"Среднее значение: {round(mean_value, 2)} \n"
+        mean_delta_info = f"Средняя ошибка: {round(mean_delta, 2)} \n"
+        mean_percent_info = f"Средний процент ошибки: {round(100 * mean_delta / mean_value, 2)}%"
+        text_data = mean_value_info + mean_delta_info + mean_percent_info
+        print(text_data)
+
+    def figshow_categorical(self, y_pred, y_true, delta):
+        fig = plt.figure(figsize=(26, 7))
+        sns.set_style("white")
+        ax1 = fig.add_subplot(1, 3, 1)
+        ax1.set_axisbelow(True)
+        ax1.minorticks_on()
+        ax1.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+        ax1.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+        N = np.arange(0, len(self.history.history["loss"]))
+        plt.plot(N, self.history.history["loss"], linestyle='--', color='blue', label="loss")
+        if 'dice_coef' in self.history.history:
+            plt.plot(N, self.history.history["dice_coef"], linestyle='--', color='green', label="dice_coef")
+        if 'val_dice_coef' in self.history.history:
+            plt.plot(N, self.history.history["val_dice_coef"], linestyle='-', color='red', label="val_dice_coef")
+        if 'mae' in self.history.history:
+            plt.plot(N, self.history.history["mae"], linestyle='--', color='red', label="mae")
+        if 'accuracy' in self.history.history:
+            plt.plot(N, self.history.history["accuracy"], linestyle='--', color='red', label="accuracy")
+        if 'accuracy' in self.history.history:
+            plt.plot(N, self.history.history["accuracy"], linestyle='--', color='red', label="accuracy")
+        if 'lr' in self.history.history:
+            lr_list = [x * 1000 for x in self.history.history["lr"]]
+            plt.plot(N, lr_list, linestyle=':', color='green', label="lr * 1000")
+        plt.title(f"Training Loss and Mean Absolute Error")
+        plt.legend()
+        ax2 = fig.add_subplot(1, 3, 2)
+        ax2.set_axisbelow(True)
+        ax2.minorticks_on()
+        ax2.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+        ax2.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+        plt.plot(y_pred, linestyle='--', color='red', label="Prediction")
+        plt.plot(y_true, linestyle='--', color='blue', label="True")
+        plt.title(f"Prediction and True ")
+        plt.legend()
+        ax3 = fig.add_subplot(1, 3, 3)
+        ax3.set_axisbelow(True)
+        ax3.minorticks_on()
+        ax3.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+        ax3.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+        # plt.plot(delta*100, linestyle='--', color='green', label="Delta percentage")
+        plt.hist(delta, color='green', label="Delta percentage")
+        plt.title(f"Delta percentage")
+        plt.legend()
+        plt.show()
+        pass
+
+    def show_categorical(self):
+        """
+        Show evaluation for categorical classification task
 
         Returns
         -------

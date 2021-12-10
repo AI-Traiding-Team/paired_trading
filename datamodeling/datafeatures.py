@@ -204,6 +204,27 @@ class DataFeatures:
         self.y_df = temp_df.drop(index=self.drop_idxs)
         return self.y_df.copy()
 
+    # Предсказание силы движения по модулю (п1 переводим в ohe [1, 2, 3, 4, 5]) - классификация.
+    # Идея в том, чтобы разделить предсказание направления [0, 1] и силу этого движения
+    def create_y_close1_close2_sub_power(self):
+        self.y_df["close"] = self.source_df_1["close"]
+        normalized_df_1 = (self.source_df_1["close"] - self.source_df_1["close"].min()) / (
+                self.source_df_1["close"].max() - self.source_df_1["close"].min())
+        normalized_df_2 = (self.source_df_2["close"] - self.source_df_2["close"].min()) / (
+                self.source_df_2["close"].max() - self.source_df_2["close"].min())
+        sub_df = pd.DataFrame()
+        sub_df["close"] = pd.DataFrame(normalized_df_1 - normalized_df_2).abs()
+        # sub_df = self.create_y_close1_close2_sub()
+        sub_df_min = sub_df.abs().min().min()
+        sub_df_max = sub_df.abs().max().max()
+        sub_df_step = (sub_df_max-sub_df_min)/5
+        power_list = list(np.arange(sub_df_min, sub_df_max, sub_df_step))
+        power_list.append(sub_df_max)
+        for idx in range(5):
+            sub_df.loc[(sub_df["close"] >= power_list[idx]) & (sub_df["close"] < power_list[idx+1]), "close"] = idx+1
+        self.y_df = sub_df.drop(index=self.drop_idxs)
+        return self.y_df.copy()
+
 # if __name__ == "main":
 #     loaded_crypto_data = DataLoad(pairs_symbols=None,
 #                                   time_intervals=['15m'],

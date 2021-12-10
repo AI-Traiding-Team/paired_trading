@@ -100,7 +100,7 @@ class TSDataGenerator(TimeseriesGenerator):
 
         samples = np.array([self.data[row - self.overlap - self.length:row:self.sampling_rate]
                             for row in rows])
-        self.sample_shape = samples.shape
+        # self.sample_shape = samples.shape
         targets = np.array([self.targets[row] for row in rows])
 
         if self.reverse:
@@ -222,6 +222,11 @@ class DSCreator:
             self.dataset.y_df = self.features.create_y_close1_close2_sub()
         elif self.dataset_profile.Y_data == "close1-close2_trend":
             self.dataset.y_df = self.features.create_y_close1_close2_sub_trend()
+        elif self.dataset_profile.Y_data == "close1-close2_power":
+            self.dataset.y_df = self.features.create_y_close1_close2_sub_power()
+        else:
+            msg = "Error: Unknown dataset preparation type"
+            sys.exit(msg)
 
         self.dataset.name = f'{self.dataset_profile.use_symbols_pairs[0]}-{self.dataset_profile.use_symbols_pairs[1]}-{self.dataset_profile.timeframe}'
         y_temp = self.dataset.y_df.values.reshape(-1, 1)
