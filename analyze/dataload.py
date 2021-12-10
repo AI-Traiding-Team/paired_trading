@@ -152,21 +152,6 @@ class DataLoad(object):
     def get_pair(self, pair_symbols, time_intervals):
         return self.ohlcvbase[f'{pair_symbols}-{time_intervals}'].df
 
-    def get_all_close(self):
-        for timeframe in self.time_intervals:
-            data = [self.ohlcvbase[f"{symbol}-{timeframe}"].df['close'].rename(symbol) for symbol in self.pairs_symbols]
-            self.all_symbols_close.update({f'{timeframe}': pd.concat(data, axis=1)})
-
-
-    def _get_all_data(self):
-        for timeframe in self.time_intervals:
-            for symbol in self.pairs_symbols:
-                source_filename = f'{symbol}-{timeframe}-data.csv'
-                source_path_filename = os.path.join(self.source_directory, source_filename)
-                ohlcv = OHLCVData(source_path_filename)
-                if (self.start_period is not None) and (self.end_period is not None):
-                    ohlcv.set_period(self.start_period, self.end_period)
-                self.ohlcvbase.update({f"{symbol}-{timeframe}": ohlcv})
     # TODO: Bug FIX strange behavior if choose only 2 pairs in initial list
     def get_all_data(self):
         dir_list = list()
