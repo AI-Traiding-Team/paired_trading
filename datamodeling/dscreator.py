@@ -115,12 +115,15 @@ class DataSet:
         self.dataset_profile = DSProfile()
         self.features_df = None
         self.y_df = None
+
         self.x_Train = None
         self.y_Train = None
         self.x_Val = None
         self.y_Val = None
         self.x_Test = None
         self.y_Test = None
+        self.x_Val_array = np.array()
+        self.x_Test_array = np.array()
         self.features_scaler = object
         self.targets_scaler = object
         self.train_gen = None

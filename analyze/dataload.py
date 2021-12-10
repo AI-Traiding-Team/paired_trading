@@ -10,7 +10,7 @@ import numpy as np
 from typing import Tuple
 from dataclasses import dataclass
 
-__version__ = 0.0013
+__version__ = 0.0014
 
 sns.set(style='ticks')
 
@@ -321,7 +321,7 @@ class Analyze(DataLoad):
                     plt.show()
         pass
 
-    def show_correlation(self, usecol='close'):
+    def show_correlation(self, usecol='close', savepath: str = None):
         merge_df = pd.DataFrame()
         for name, ohlcv in self.ohlcvbase.items():
             if merge_df.shape == (0, 0):
@@ -350,6 +350,12 @@ class Analyze(DataLoad):
         plot = sns.heatmap(correlation_matrix, center=0)
         fig = plot.get_figure()
         fig.savefig('correlation.png')
+        if savepath is None:
+            plt.show()
+        else:
+            path_filename = os.path.join(savepath, f"pairs_correlation-{timeframe}.png")
+            plt.savefig(path_filename)
+            plt.show()
         pass
 
     """
@@ -449,7 +455,6 @@ if __name__ == '__main__':
                        start_period='2021-09-01 00:00:00',
                        end_period='2021-12-05 23:59:59'
                        )
-    show_data.check_and_repair()
     # show_data.show_all_data()
     # show_data.show_combinations_diff(savepath="/home/cubecloud/Python/projects/paired_trading/analyze/pics")
     #show_data.diff_calculation()

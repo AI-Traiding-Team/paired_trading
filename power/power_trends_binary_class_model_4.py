@@ -14,17 +14,19 @@ class TrainNN:
         Model 4,
         Classification, trend with thresholds
         """
-        dataset_2_profile = DSProfile()
-        dataset_2_profile.Y_data = "close1-close2_trend"
-        dataset_2_profile.timeframe = "1m"
+        dataset_4_profile = DSProfile()
+        dataset_4_profile.Y_data = "close1-close2_trend"
+        dataset_4_profile.timeframe = "1m"
+
         """ Default options for dataset window"""
-        dataset_2_profile.tsg_window_length = 40
-        dataset_2_profile.tsg_sampling_rate = 1
-        dataset_2_profile.tsg_stride = 1
-        dataset_2_profile.tsg_start_index = 0
-        dataset_2_profile.tsg_overlap = 0
+        dataset_4_profile.tsg_window_length = 40
+        dataset_4_profile.tsg_sampling_rate = 1
+        dataset_4_profile.tsg_stride = 1
+        dataset_4_profile.tsg_start_index = 0
+        dataset_4_profile.tsg_overlap = 0
+
         """ Warning! Change this qty if using .shift() more then 2 """
-        dsc = DSCreator(loaded_crypto_data, dataset_2_profile)
+        dsc = DSCreator(loaded_crypto_data, dataset_4_profile)
         dts_close1_close2_trend = dsc.create_dataset()
 
         binary_profile = NNProfile("binary_crossentropy")
