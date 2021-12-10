@@ -218,12 +218,10 @@ class MainNN:
         self.keras_model.save(path_filename)
         pass
 
-    def get_predict(self):
-        self.x_Test = self.dataset.x_Test
-        self.y_Test = self.dataset.y_Test
+    def get_predict(self, x_Test):
         path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.nn_profile.experiment_name}_{self.dataset.name}.h5")
         tf.keras.models.load_model(path_filename)
-        self.y_Pred = self.keras_model.predict(self.x_Test)
+        self.y_Pred = self.keras_model.predict(x_Test)
         return self.y_Pred
 
     def figshow_regression(self, y_pred, y_true, delta):
@@ -245,7 +243,9 @@ class MainNN:
         if 'accuracy' in self.history.history:
             plt.plot(N, self.history.history["accuracy"], linestyle='--', color='red', label="accuracy")
         if 'accuracy' in self.history.history:
-            plt.plot(N, self.history.history["accuracy"], linestyle='--', color='red', label="accuracy")
+            plt.plot(N, self.history.history["val_accuracy"], linestyle=':', color='red', label="val_accuracy")
+        if 'val_loss' in self.history.history:
+            plt.plot(N, self.history.history["val_loss"], linestyle=':', color='blue', label="val_accuracy")
         if 'lr' in self.history.history:
             lr_list = [x * 1000 for x in self.history.history["lr"]]
             plt.plot(N, lr_list, linestyle=':', color='green', label="lr * 1000")
@@ -280,6 +280,7 @@ class MainNN:
         -------
         None
         """
+        self.get_predict(self.dataset.x_Test)
         y_pred_unscaled = self.dataset.targets_scaler.inverse_transform(self.y_Pred).flatten()
         y_true_unscaled = self.dataset.targets_scaler.inverse_transform(self.dataset.y_Test).flatten()
 
@@ -295,7 +296,7 @@ class MainNN:
         text_data = mean_value_info + mean_delta_info + mean_percent_info
         print(text_data)
 
-    def figshow_categorical(self, y_pred, y_true, delta):
+    def figshow_base(self):
         fig = plt.figure(figsize=(26, 7))
         sns.set_style("white")
         ax1 = fig.add_subplot(1, 3, 1)
@@ -314,32 +315,53 @@ class MainNN:
         if 'accuracy' in self.history.history:
             plt.plot(N, self.history.history["accuracy"], linestyle='--', color='red', label="accuracy")
         if 'accuracy' in self.history.history:
-            plt.plot(N, self.history.history["accuracy"], linestyle='--', color='red', label="accuracy")
+            plt.plot(N, self.history.history["val_accuracy"], linestyle=':', color='red', label="val_accuracy")
+        if 'val_loss' in self.history.history:
+            plt.plot(N, self.history.history["val_loss"], linestyle=':', color='blue', label="val_accuracy")
         if 'lr' in self.history.history:
             lr_list = [x * 1000 for x in self.history.history["lr"]]
             plt.plot(N, lr_list, linestyle=':', color='green', label="lr * 1000")
         plt.title(f"Training Loss and Mean Absolute Error")
         plt.legend()
-        ax2 = fig.add_subplot(1, 3, 2)
-        ax2.set_axisbelow(True)
-        ax2.minorticks_on()
-        ax2.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
-        ax2.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-        plt.plot(y_pred, linestyle='--', color='red', label="Prediction")
-        plt.plot(y_true, linestyle='--', color='blue', label="True")
-        plt.title(f"Prediction and True ")
-        plt.legend()
-        ax3 = fig.add_subplot(1, 3, 3)
-        ax3.set_axisbelow(True)
-        ax3.minorticks_on()
-        ax3.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
-        ax3.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-        # plt.plot(delta*100, linestyle='--', color='green', label="Delta percentage")
-        plt.hist(delta, color='green', label="Delta percentage")
-        plt.title(f"Delta percentage")
-        plt.legend()
+        # ax2 = fig.add_subplot(1, 3, 2)
+        # ax2.set_axisbelow(True)
+        # ax2.minorticks_on()
+        # ax2.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+        # ax2.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+        # plt.plot(y_pred, linestyle='--', color='red', label="Prediction")
+        # plt.plot(y_true, linestyle='--', color='blue', label="True")
+        # plt.title(f"Prediction and True ")
+        # plt.legend()
+        # ax3 = fig.add_subplot(1, 3, 3)
+        # ax3.set_axisbelow(True)
+        # ax3.minorticks_on()
+        # ax3.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+        # ax3.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+        # # plt.plot(delta*100, linestyle='--', color='green', label="Delta percentage")
+        # plt.hist(delta, color='green', label="Delta percentage")
+        # plt.title(f"Delta percentage")
+        # plt.legend()
         plt.show()
         pass
+
+    def check_categorical(self):
+        x_test = self.dataset.x_Test[-600:-500]
+        y_test_org = self.dataset.y_Test[-600:-500]
+        conv_test = []
+        for i in range(len(x_test)):
+            x = x_test[i]
+            x = np.expand_dims(x, axis=0)
+            prediction = self.keras_model.predict(x)  # Распознаём наш пример
+            # print('\n',prediction)
+            prediction = np.argmax(prediction)  # Получаем индекс самого большого элемента (это итоговая цифра)
+            if prediction == np.argmax(y_test_org[i]):
+                conv_test.append('True')
+            else:
+                conv_test.append('False')
+
+            print('Index:', i, '\tPrediction:', prediction, 'Real:', np.argmax(y_test_org[i]),
+                  '\t====>', y_test_org[i])
+            pass
 
     def show_categorical(self):
         """
@@ -349,21 +371,18 @@ class MainNN:
         -------
         None
         """
-        y_pred_unscaled = self.dataset.targets_scaler.inverse_transform(self.y_Pred).flatten()
-        y_true_unscaled = self.dataset.targets_scaler.inverse_transform(self.dataset.y_Test).flatten()
+        self.get_predict(self.dataset.x_Test)
+        y_pred_unscaled = self.y_Pred.flatten()
+        y_true_unscaled = self.dataset.y_Test.flatten()
 
         # вычисление среднего значения, средней ошибки и процента ошибки
-        mean_value = sum(y_pred_unscaled) / len(y_pred_unscaled)
-        delta = abs(y_pred_unscaled - y_true_unscaled)
-        delta_percentage = delta / y_true_unscaled
-        self.figshow_regression(y_pred_unscaled, y_true_unscaled, delta_percentage)
-        mean_delta = sum(delta) / len(delta)
-        mean_value_info = f"Среднее значение: {round(mean_value, 2)} \n"
-        mean_delta_info = f"Средняя ошибка: {round(mean_delta, 2)} \n"
-        mean_percent_info = f"Средний процент ошибки: {round(100 * mean_delta / mean_value, 2)}%"
-        text_data = mean_value_info + mean_delta_info + mean_percent_info
-        print(text_data)
+        # mean_value = sum(y_pred_unscaled) / len(y_pred_unscaled)
+        # delta = abs(y_pred_unscaled - y_true_unscaled)
+        # delta_percentage = delta / y_true_unscaled
+        self.figshow_base()
+        self.check_categorical()
 
+        pass
 
 if __name__ == "__main__":
     test_nn_profile = NNProfile()

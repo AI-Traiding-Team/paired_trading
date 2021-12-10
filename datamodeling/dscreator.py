@@ -216,7 +216,7 @@ class DSCreator:
         return self.dataset.test_gen
 
     def create_close1_close2_power(self):
-        self.dataset.name = f'{self.dataset_profile.use_symbols_pairs[0]}-{self.dataset_profile.use_symbols_pairs[1]}-{self.dataset_profile.timeframe}'
+
         if self.dataset_profile.scaler == "robust":
             self.dataset.features_scaler = RobustScaler().fit(self.dataset.features_df.values)
             self.dataset.targets_scaler = None
@@ -227,6 +227,21 @@ class DSCreator:
         x_arr = self.dataset.features_scaler.transform(self.dataset.features_df.values)
         """ check """
         y_arr = self.dataset.y_df.values
+        self.prepare_datagens(x_arr, y_arr)
+        pass
+
+    def create_close1_close2_trend(self):
+
+        if self.dataset_profile.scaler == "robust":
+            self.dataset.features_scaler = RobustScaler().fit(self.dataset.features_df.values)
+            self.dataset.targets_scaler = None
+        else:
+            msg = "Error: Unknown scaler preparation type"
+            sys.exit(msg)
+
+        x_arr = self.dataset.features_scaler.transform(self.dataset.features_df.values)
+        """ check """
+        y_arr = self.dataset.y_df.values.reshape(-1, 1)
         self.prepare_datagens(x_arr, y_arr)
         pass
 
@@ -260,10 +275,13 @@ class DSCreator:
     def create_dataset(self) -> DataSet:
         self.dataset.dataset_profile = DSProfile()
         self.dataset.features_df = self.features.collect_features(self.dataset_profile)
+        self.dataset.name = f'{self.dataset_profile.use_symbols_pairs[0]}-{self.dataset_profile.use_symbols_pairs[1]}-{self.dataset_profile.timeframe}'
         if self.dataset_profile.Y_data == "close1-close2":
             self.dataset.y_df = self.features.create_y_close1_close2_sub()
         elif self.dataset_profile.Y_data == "close1-close2_trend":
             self.dataset.y_df = self.features.create_y_close1_close2_sub_trend()
+            self.create_close1_close2_trend()
+            return self.dataset
         elif self.dataset_profile.Y_data == "close1-close2_power":
             self.dataset.y_df = self.features.create_y_close1_close2_sub_power()
             self.create_close1_close2_power()

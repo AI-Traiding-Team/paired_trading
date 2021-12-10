@@ -20,7 +20,7 @@ class TrainNN:
         dataset_3_profile.timeframe = "1m"
 
         """ Default options for dataset window"""
-        dataset_3_profile.tsg_window_length = 40
+        dataset_3_profile.tsg_window_length = 35
         dataset_3_profile.tsg_sampling_rate = 1
         dataset_3_profile.tsg_stride = 1
         dataset_3_profile.tsg_start_index = 0

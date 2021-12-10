@@ -199,7 +199,7 @@ class DataFeatures:
                 self.source_df_2["close"].max() - self.source_df_2["close"].min())
         temp_df = pd.DataFrame()
         temp_df["close"] = pd.DataFrame(normalized_df_1 - normalized_df_2)
-        temp_df.loc[temp_df["close"] < 0, "close"] = 0
+        temp_df.loc[temp_df["close"] <= 0, "close"] = 0
         temp_df.loc[temp_df["close"] > 0, "close"] = 1
         self.y_df = temp_df.drop(index=self.drop_idxs)
         return self.y_df.copy()
