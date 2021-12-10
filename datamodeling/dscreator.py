@@ -241,7 +241,7 @@ class DSCreator:
 
         x_arr = self.dataset.features_scaler.transform(self.dataset.features_df.values)
         """ check """
-        y_arr = self.dataset.y_df.values.reshape(-1, 1)
+        y_arr = self.dataset.y_df.values
         self.prepare_datagens(x_arr, y_arr)
         pass
 

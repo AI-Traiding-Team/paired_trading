@@ -190,8 +190,9 @@ class DataFeatures:
         self.y_df = self.y_df.drop(index=self.drop_idxs)
         return self.y_df.copy()
 
+    """ Just copy for backup """
     # 0 if Close1 - Close2 < 0 и 1 if Close1 - Close2 >= 0 - в одном столбце
-    def create_y_close1_close2_sub_trend(self):
+    def create_y_close1_close2_sub_trend_1st_try(self):
         self.y_df["close"] = self.source_df_1["close"]
         normalized_df_1 = (self.source_df_1["close"] - self.source_df_1["close"].min()) / (
                 self.source_df_1["close"].max() - self.source_df_1["close"].min())
@@ -204,27 +205,69 @@ class DataFeatures:
         self.y_df = temp_df.drop(index=self.drop_idxs)
         return self.y_df.copy()
 
-    # Предсказание силы движения по модулю (п1 переводим в ohe [1, 2, 3, 4, 5]) - классификация.
-    # Идея в том, чтобы разделить предсказание направления [0, 1] и силу этого движения
+    # 0 if Close1 - Close2 < 0 и 1 if Close1 - Close2 >= 0 - в одном столбце
+    def create_y_close1_close2_sub_trend(self):
+        temp_df = pd.DataFrame()
+        temp_df["close1"] = self.source_df_1["close"]
+        temp_df.insert(1, "close2", self.source_df_2["close"].values)
+        temp_df["close1/close2"] = temp_df["close1"]/temp_df["close2"]
+        temp_df["close1/close2_pct"] = temp_df["close1/close2"].pct_change(1)
+        temp_df.loc[temp_df["close1/close2_pct"] <= 0, "close1/close2_pct"] = 0
+        temp_df.loc[temp_df["close1/close2_pct"] > 0, "close1/close2_pct"] = 1
+        temp_df = temp_df["close1/close2_pct"]
+        temp_df = temp_df.drop(index=self.drop_idxs)
+        ohe = pd.get_dummies(temp_df, dtype=float)
+        self.y_df = pd.DataFrame(ohe)
+        # unique = np.unique(self.y_df, return_counts=True )
+        return self.y_df
+
+
+    # # Предсказание силы движения по модулю (п1 переводим в ohe [1, 2, 3, 4, 5]) - классификация.
+    # # Идея в том, чтобы разделить предсказание направления [0, 1] и силу этого движения
     def create_y_close1_close2_sub_power(self):
-        self.y_df["close"] = self.source_df_1["close"]
-        normalized_df_1 = (self.source_df_1["close"] - self.source_df_1["close"].min()) / (
-                self.source_df_1["close"].max() - self.source_df_1["close"].min())
-        normalized_df_2 = (self.source_df_2["close"] - self.source_df_2["close"].min()) / (
-                self.source_df_2["close"].max() - self.source_df_2["close"].min())
-        sub_df = pd.DataFrame()
-        sub_df["close"] = pd.DataFrame(normalized_df_1 - normalized_df_2).abs()
-        # sub_df = self.create_y_close1_close2_sub()
-        sub_df_min = sub_df.abs().min().min()
-        sub_df_max = sub_df.abs().max().max()
-        sub_df_step = (sub_df_max-sub_df_min)/5
-        power_list = list(np.arange(sub_df_min, sub_df_max, sub_df_step))
-        power_list.insert(5, sub_df_max)
-        for idx in range(5):
-            sub_df.loc[(sub_df["close"] >= power_list[idx]) & (sub_df["close"] < power_list[idx+1]+0.0001), "close"] = idx
-        ohe = pd.get_dummies(sub_df["close"], dtype=float)
-        self.y_df = ohe.drop(index=self.drop_idxs)
+        temp_df = pd.DataFrame()
+        temp_df["close1"] = self.source_df_1["close"]
+        temp_df.insert(1, "close2", self.source_df_2["close"].values)
+        temp_df["close1/close2"] = temp_df["close1"]/temp_df["close2"]
+        temp_df["close1/close2_pct"] = temp_df["close1/close2"].pct_change(1)
+        normalized_df = (temp_df["close1/close2_pct"] - temp_df["close1/close2_pct"].min()) / (
+                temp_df["close1/close2_pct"].max() - temp_df["close1/close2_pct"].min())
+        temp_df_min = normalized_df.min().min()
+        temp_df_max = normalized_df.max().max()
+        all_range = temp_df_max-temp_df_min
+        temp_df_step = all_range/3
+        power_list = list(np.arange(temp_df_min, temp_df_max, temp_df_step))
+        power_list.insert(3, temp_df_max)
+        temp_df = normalized_df
+        for idx in range(1, 4):
+            temp_df.loc[(temp_df > power_list[idx-1]) & (temp_df <= power_list[idx])] = idx-1
+        temp_df = temp_df.drop(index=self.drop_idxs)
+        unique = np.unique(temp_df.iloc[:,], return_counts=True )
+        ohe = pd.get_dummies(temp_df, dtype=float)
+        self.y_df = ohe
         return self.y_df.copy()
+
+    # # Предсказание силы движения по модулю (п1 переводим в ohe [1, 2, 3, 4, 5]) - классификация.
+    # # Идея в том, чтобы разделить предсказание направления [0, 1] и силу этого движения
+    # def create_y_close1_close2_sub_power(self):
+    #     self.y_df["close"] = self.source_df_1["close"]
+    #     normalized_df_1 = (self.source_df_1["close"] - self.source_df_1["close"].min()) / (
+    #             self.source_df_1["close"].max() - self.source_df_1["close"].min())
+    #     normalized_df_2 = (self.source_df_2["close"] - self.source_df_2["close"].min()) / (
+    #             self.source_df_2["close"].max() - self.source_df_2["close"].min())
+    #     sub_df = pd.DataFrame()
+    #     sub_df["close"] = pd.DataFrame(normalized_df_1 - normalized_df_2).abs()
+    #     # sub_df = self.create_y_close1_close2_sub()
+    #     sub_df_min = sub_df.abs().min().min()
+    #     sub_df_max = sub_df.abs().max().max()
+    #     sub_df_step = (sub_df_max-sub_df_min)/5
+    #     power_list = list(np.arange(sub_df_min, sub_df_max, sub_df_step))
+    #     power_list.insert(5, sub_df_max)
+    #     for idx in range(5):
+    #         sub_df.loc[(sub_df["close"] >= power_list[idx]) & (sub_df["close"] < power_list[idx+1]+0.0001), "close"] = idx
+    #     ohe = pd.get_dummies(sub_df["close"], dtype=float)
+    #     self.y_df = ohe.drop(index=self.drop_idxs)
+    #     return self.y_df.copy()
 
 # if __name__ == "main":
 #     loaded_crypto_data = DataLoad(pairs_symbols=None,

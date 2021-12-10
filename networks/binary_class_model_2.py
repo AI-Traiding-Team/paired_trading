@@ -3,7 +3,7 @@ from datamodeling import *
 from analyze import DataLoad
 from networks import *
 
-__version__ = 0.0009
+__version__ = 0.00010
 
 
 class TrainNN:
@@ -19,7 +19,7 @@ class TrainNN:
         dataset_2_profile.Y_data = "close1-close2_trend"
         dataset_2_profile.timeframe = "1m"
         """ Default options for dataset window"""
-        dataset_2_profile.tsg_window_length = 45
+        dataset_2_profile.tsg_window_length = 40
         dataset_2_profile.tsg_sampling_rate = 1
         dataset_2_profile.tsg_stride = 1
         dataset_2_profile.tsg_start_index = 0
@@ -29,9 +29,9 @@ class TrainNN:
         dts_close1_close2_trend = dsc.create_dataset()
 
         binary_profile = NNProfile("binary_crossentropy")
-        binary_profile.learning_rate = 1e-4
+        binary_profile.learning_rate = 1e-3
         binary_profile.experiment_name = f"{binary_profile.experiment_name}_close1_close2_trend"
-        binary_profile.epochs = 15
+        binary_profile.epochs = 100
         test_nn = MainNN(binary_profile)
         test_nn.train_model(dts_close1_close2_trend)
         # pred = test_nn.get_predict()

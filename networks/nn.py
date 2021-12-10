@@ -160,7 +160,7 @@ class MainNN:
         if model_type == 'regression':
             x_out = Dense(1, activation='linear')(x)
         elif model_type == "binary_crossentropy":
-            x_out = Dense(1, activation='sigmoid')(x)
+            x_out = Dense(num_classes, activation='sigmoid')(x)
         elif model_type == "categorical_crossentropy":
             x_out = Dense(num_classes, activation='softmax')(x)
         model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
@@ -299,7 +299,7 @@ class MainNN:
     def figshow_base(self):
         fig = plt.figure(figsize=(26, 7))
         sns.set_style("white")
-        ax1 = fig.add_subplot(1, 3, 1)
+        ax1 = fig.add_subplot(1, 1, 1)
         ax1.set_axisbelow(True)
         ax1.minorticks_on()
         ax1.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
@@ -359,8 +359,7 @@ class MainNN:
             else:
                 conv_test.append('False')
 
-            print('Index:', i, '\tPrediction:', prediction, 'Real:', np.argmax(y_test_org[i]),
-                  '\t====>', y_test_org[i])
+            print(f'Index: {i}, Prediction: {prediction}, Real: {np.argmax(y_test_org[i])},\t====> {y_test_org[i]} {conv_test[i]}')
             pass
 
     def show_categorical(self):
