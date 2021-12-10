@@ -5,14 +5,11 @@ from networks import *
 
 __version__ = 0.0008
 
-
-
-
 class TrainNN:
     def __init__(self):
         pass
 
-    def train_model_1(self):
+    def train_model(self):
         """
         Model 1,
         Regression, close1-close2
@@ -30,28 +27,6 @@ class TrainNN:
         test_nn.show_regression()
         pass
 
-    def train_model_2(self):
-        """
-        Model 2,
-        Classification, close1-close2
-        """
-        dataset_2_profile = DSProfile()
-        dataset_2_profile.Y_data = "close1-close2_trend"
-        dataset_2_profile.timeframe = "1m"
-        dsc = DSCreator(loaded_crypto_data, dataset_2_profile)
-        dts_close1_close2_trend = dsc.create_dataset()
-        binary_profile = NNProfile("binary_crossentropy")
-        binary_profile.experiment_name = f"{binary_profile.experiment_name}_close1_close2_trend"
-        binary_profile.epochs = 10
-        test_nn = MainNN(binary_profile)
-        test_nn.train_model(dts_close1_close2_trend)
-        pred = test_nn.get_predict()
-        print(pred)
-        # test_nn.show_regression()
-
-    def figures(self):
-
-        pass
 if __name__ == "__main__":
     """
     Usage for DataLoad class
@@ -83,13 +58,7 @@ if __name__ == "__main__":
     Model 1, 
     Regression, close1-close2
     """
-    tr.train_model_1()
-
-    """
-    Model 2, 
-    Classification, close1-close2_trend
-    """
-    tr.train_model_2()
+    tr.train_model()
 
 
 
