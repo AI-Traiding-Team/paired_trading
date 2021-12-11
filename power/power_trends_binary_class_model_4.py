@@ -42,6 +42,10 @@ class TrainNN:
         self.nn_network.show_categorical()
         pass
 
+    def get_dataset(self):
+        return self.dts_power_trend
+
+
 if __name__ == "__main__":
     """
     Usage for DataLoad class
