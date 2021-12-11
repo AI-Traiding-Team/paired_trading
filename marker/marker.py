@@ -6,7 +6,7 @@ from datamodeling.datafeatures import DSProfile
 import pandas as pd
 import numpy as np
 
-__version__ = 0.0002
+__version__ = 0.0003
 
 class Marker():
     def __init__(self, loader: DataLoad):
@@ -24,7 +24,7 @@ class Marker():
         self.symbol = None
         self.timeframe = None
         self.y_df = None
-
+        pass
 
 
     @staticmethod
@@ -305,13 +305,26 @@ class Marker():
             dataset_df.to_csv(path_filename)
         pass
 
+    def mark_all_loader_df(self, target_directory=''):
+        for idx, (key, ohlcv_obj) in enumerate(self.loader.ohlcvbase.items()):
+            self.symbol = ohlcv_obj.symbol_name
+            self.timeframe = ohlcv_obj.timeframe
+            print(f'Symbol #{idx}')
+            self.create_dataset_df(self.symbol,
+                                   timeframe=self.timeframe,
+                                   target_directory=target_directory,
+                                   weight=0.055)
+            pass
+
+
 if __name__ == "__main__":
     loaded_crypto_data = DataLoad(pairs_symbols= None,
                                   time_intervals=['1m'],
                                   source_directory="../source_root",
-                                  start_period='2021-11-01 00:00:00',
+                                  start_period='2021-09-01 00:00:00',
                                   end_period='2021-12-05 23:59:59',
                                   )
     mr = Marker(loaded_crypto_data)
-    mr.create_dataset_df("ETHUSDT", timeframe="1m", target_directory="../source_ds", weight=0.055)
-    mr.create_dataset_df("BTCUSDT", timeframe="1m", target_directory="../source_ds", weight=0.055)
+    mr.mark_all_loader_df(target_directory="../source_ds")
+    # mr.create_dataset_df("ETHUSDT", timeframe="1m", target_directory="../source_ds", weight=0.055)
+    # mr.create_dataset_df("BTCUSDT", timeframe="1m", target_directory="../source_ds", weight=0.055)
