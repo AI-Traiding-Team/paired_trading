@@ -319,7 +319,7 @@ class Marker():
 
 if __name__ == "__main__":
     loaded_crypto_data = DataLoad(pairs_symbols= None,
-                                  time_intervals=['1m'],
+                                  time_intervals=['15m'],
                                   source_directory="../source_root",
                                   start_period='2021-09-01 00:00:00',
                                   end_period='2021-12-05 23:59:59',
