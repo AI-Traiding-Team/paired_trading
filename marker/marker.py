@@ -242,8 +242,7 @@ class Marker():
         date_df = Marker.split_datetime_data(input_df.index, cols_create)
         return date_df
 
-
-    def collect_features(self, symbol, timeframe):
+    def collect_features(self):
         self.source_df = self.loader.ohlcvbase[f"{self.symbol}-{self.timeframe}"].df.copy()
 
         # """ Warning! date feature reduced for lowest timeframe """
@@ -282,7 +281,7 @@ class Marker():
     def create_dataset_df(self, symbol, timeframe, target_directory='', save_file=True, weight=0.15):
         self.symbol = symbol
         self.timeframe = timeframe
-        dataset_df = self.collect_features(self.symbol, self.timeframe)
+        dataset_df = self.collect_features()
         dataset_df['y'] = self.create_power_trend(weight=weight)
         msg = f"Pair: {self.symbol} - {self.timeframe}\n" \
               f"Dataframe shape: {dataset_df.shape} \n" \
