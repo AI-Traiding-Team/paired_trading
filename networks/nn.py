@@ -218,10 +218,10 @@ class MainNN:
         self.keras_model.save(path_filename)
         pass
 
-    def get_predict(self, x_Test):
+    def get_predict(self):
         path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.nn_profile.experiment_name}_{self.dataset.name}.h5")
         tf.keras.models.load_model(path_filename)
-        self.y_Pred = self.keras_model.predict(x_Test)
+        self.y_Pred = self.keras_model.predict(self.dataset.x_Test)
         return self.y_Pred
 
     def figshow_regression(self, y_pred, y_true, delta):
@@ -280,7 +280,7 @@ class MainNN:
         -------
         None
         """
-        self.get_predict(self.dataset.x_Test)
+        self.get_predict()
         y_pred_unscaled = self.dataset.targets_scaler.inverse_transform(self.y_Pred).flatten()
         y_true_unscaled = self.dataset.targets_scaler.inverse_transform(self.dataset.y_Test).flatten()
 
@@ -370,17 +370,9 @@ class MainNN:
         -------
         None
         """
-        self.get_predict(self.dataset.x_Test)
-        y_pred_unscaled = self.y_Pred.flatten()
-        y_true_unscaled = self.dataset.y_Test.flatten()
-
-        # вычисление среднего значения, средней ошибки и процента ошибки
-        # mean_value = sum(y_pred_unscaled) / len(y_pred_unscaled)
-        # delta = abs(y_pred_unscaled - y_true_unscaled)
-        # delta_percentage = delta / y_true_unscaled
+        self.get_predict()
         self.figshow_base()
         self.check_categorical()
-
         pass
 
 if __name__ == "__main__":

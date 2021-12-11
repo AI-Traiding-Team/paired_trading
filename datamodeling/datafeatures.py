@@ -405,7 +405,8 @@ class DataFeatures:
     def create_power_trend(self, weight):
         pair_symbol = self.pairs_symbols[2]
         timeframe = self.ds_profile.timeframe
-        ohlcv_df = self.ohlcv_base[f"{pair_symbol}-{timeframe}"].df.copy()
+        self.source_df_3 = self.ohlcv_base[f"{pair_symbol}-{timeframe}"].df.copy()
+        ohlcv_df = self.source_df_3
         trend_df = pd.DataFrame()
         trend_df["trend"] = self.calculate_trend(ohlcv_df, weight)
         trend_df.loc[trend_df["trend"] == -1, "trend"] = 0

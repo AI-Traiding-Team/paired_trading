@@ -2,7 +2,7 @@ from datamodeling import *
 from analyze import DataLoad
 from networks import *
 
-__version__ = 0.0003
+__version__ = 0.0004
 
 
 class TrainNN:
@@ -11,6 +11,8 @@ class TrainNN:
         Model 4,
         Classification, trend with thresholds
         """
+
+        self.power_trends_list = (0.15, 0.075, 0.055, 0.0275)
         self.dataset_profile = DSProfile()
         self.dataset_profile.Y_data = "power_trend"
         self.dataset_profile.timeframe = "1m"
@@ -46,6 +48,59 @@ class TrainNN:
         return self.dts_power_trend
 
 
+    def check_trends_weights(self,
+                             use_col: str = "trend"
+                             ) -> None:
+        """
+        Args:
+            use_col (str):          name of column. default "trend"
+
+        Returns:
+            None:
+        """
+
+        for weight in self.power_trends_list:
+            data_df = self.dsc.features.source_df_3
+            trend_df = self.dsc.features.calculate_trend(data_df, weight)
+            # for visualization we use scaling of trend = 1 to data_df["close"].max()
+            max_close = data_df["close"].max()
+            min_close = data_df["close"].min()
+            mean_close = data_df["close"].mean()
+            trend_df.loc[(trend_df["trend"] == 1), "trend"] = max_close
+            trend_df.loc[(trend_df["trend"] == -1), "trend"] = min_close
+            trend_df.loc[(trend_df["trend"] == 0), "trend"] = mean_close
+            data_df[f"trend_{weight}"] = trend_df[use_col]
+
+        col_list = data_df.columns.to_list()
+
+        try:
+            col_list.index("close")
+        except ValueError:
+            msg = f"Error: 'close' column not found in pd.DataFrame only {col_list}. Can't show figure"
+            sys.exit(msg)
+
+        weights_list_len = len(self.power_trends_list)
+        fig = plt.figure(figsize=(45, 6 * weights_list_len))
+
+        for i, weight in enumerate(self.power_trends_list):
+            ax1 = fig.add_subplot(weights_list_len, 1, i + 1)
+            # Don't allow the axis to be on top of your data
+            ax1.set_axisbelow(True)
+            # Turn on the minor TICKS, which are required for the minor GRID
+            ax1.minorticks_on()
+            # Customize the major grid
+            ax1.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+            # Customize the minor grid
+            ax1.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+            # ax1.plot(data_df.index, data_df["close"],  'b-')
+            # ax2 = ax1.twinx()
+            ax1.plot(data_df.index, data_df[f"trend_{weight}"], data_df.index, data_df["close"])
+            ax1.set_ylabel(f'weight = {weight}', color='r')
+            plt.title(f"Trend with weight: {weight}")
+        plt.show()
+        pass
+
+
 if __name__ == "__main__":
     """
     Usage for DataLoad class
@@ -77,7 +132,8 @@ if __name__ == "__main__":
     Model 4, 
     Classification, trend with thresholds
     """
-    tr.train_model()
+    tr.check_trends_weights()
+    # tr.train_model()
 
 
 
