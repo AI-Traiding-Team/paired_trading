@@ -34,7 +34,7 @@ class TrainNN:
         self.nn_profile = NNProfile("categorical_crossentropy")
         self.nn_profile.learning_rate = 1e-4
         self.nn_profile.experiment_name = f"{self.nn_profile.experiment_name}_categorical_trend"
-        self.nn_profile.epochs = 50
+        self.nn_profile.epochs = 20
         self.nn_network = MainNN(self.nn_profile)
         pass
 
