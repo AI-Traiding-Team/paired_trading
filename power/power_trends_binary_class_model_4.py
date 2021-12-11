@@ -1,43 +1,50 @@
-from dataclasses import dataclass
 from datamodeling import *
 from analyze import DataLoad
 from networks import *
 
-__version__ = 0.00010
+__version__ = 0.0003
 
 
 class TrainNN:
     def __init__(self):
+        """
+        Model 4,
+        Classification, trend with thresholds
+        """
+        self.dataset_profile = DSProfile()
+        self.dataset_profile.Y_data = "power_trend"
+        self.dataset_profile.timeframe = "1m"
+        self.dataset_profile.use_symbols_pairs = ("ETHUSDT", "BTCUSDT", "ETHBTC")
+        self.dataset_profile.power_trend = 0.075
+
+        """ Default options for dataset window"""
+        self.dataset_profile.tsg_window_length = 40
+        self.dataset_profile.tsg_sampling_rate = 1
+        self.dataset_profile.tsg_stride = 1
+        self.dataset_profile.tsg_start_index = 0
+        """ Warning! Change this qty if using .shift() more then 2 """
+        self.dataset_profile.tsg_overlap = 0
+
+        self.dsc = DSCreator(loaded_crypto_data, self.dataset_profile)
+        self.dts_power_trend = self.dsc.create_dataset()
+        self.nn_profile = NNProfile("categorical_crossentropy")
+        self.nn_profile.learning_rate = 1e-4
+        self.nn_profile.experiment_name = f"{self.nn_profile.experiment_name}_categorical_trend"
+        self.nn_profile.epochs = 350
+        self.nn_network = MainNN(self.nn_profile)
         pass
 
     def train_model(self):
-        """
-        Model 2,
-        Classification, close1-close2
-        """
-        dataset_2_profile = DSProfile()
-        dataset_2_profile.Y_data = "close1-close2_trend"
-        dataset_2_profile.timeframe = "1m"
-        """ Default options for dataset window"""
-        dataset_2_profile.tsg_window_length = 40
-        dataset_2_profile.tsg_sampling_rate = 1
-        dataset_2_profile.tsg_stride = 1
-        dataset_2_profile.tsg_start_index = 0
-        dataset_2_profile.tsg_overlap = 0
-        """ Warning! Change this qty if using .shift() more then 2 """
-        dsc = DSCreator(loaded_crypto_data, dataset_2_profile)
-        dts_close1_close2_trend = dsc.create_dataset()
-
-        binary_profile = NNProfile("binary_crossentropy")
-        binary_profile.learning_rate = 1e-4
-        binary_profile.experiment_name = f"{binary_profile.experiment_name}_close1_close2_trend"
-        binary_profile.epochs = 350
-        test_nn = MainNN(binary_profile)
-        test_nn.train_model(dts_close1_close2_trend)
+        self.nn_profile.num_classes = 2
+        self.nn_network.train_model(self.dts_power_trend)
         # pred = test_nn.get_predict()
         # # print(pred)
-        test_nn.show_categorical()
+        self.nn_network.show_categorical()
         pass
+
+    def get_dataset(self):
+        return self.dts_power_trend
+
 
 if __name__ == "__main__":
     """
@@ -60,15 +67,15 @@ if __name__ == "__main__":
 
     loaded_crypto_data = DataLoad(pairs_symbols=None,
                                   time_intervals=['1m'],
-                                  source_directory="../source_root",
+                                  source_directory="/home/cubecloud/Python/projects/paired_trading/source_root",
                                   start_period='2021-09-01 00:00:00',
                                   end_period='2021-12-05 23:59:59',
                                   )
 
     tr = TrainNN()
     """
-    Model 2, 
-    Classification, close1-close2_trend
+    Model 4, 
+    Classification, trend with thresholds
     """
     tr.train_model()
 
