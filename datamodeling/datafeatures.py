@@ -387,7 +387,7 @@ class DataFeatures:
         return self.y_df
 
     def create_power_trend(self, weight):
-        pair_symbol = self.pairs_symbols[2]
+        pair_symbol = self.ds_profile.use_symbols_pairs[2]
         timeframe = self.ds_profile.timeframe
         self.source_df_3 = self.ohlcv_base[f"{pair_symbol}-{timeframe}"].df.copy()
         ohlcv_df = self.source_df_3

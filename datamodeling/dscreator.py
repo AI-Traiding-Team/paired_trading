@@ -128,6 +128,9 @@ class DataSet:
         self.val_gen = None
         self.test_gen = None
         self.input_shape = None
+        self.ohlcv_train_df = None
+        self.ohlcv_val_df = None
+        self.ohlcv_test_df = None
     pass
 
     def get_train(self):
@@ -185,24 +188,26 @@ class DSCreator:
                                   self.df_train_len + self.dataset_profile.gap_timeframes: self.df_val_len + self.df_train_len + self.dataset_profile.gap_timeframes,
                                   :]
             self.dataset.test_df = self.dataset.features_df.iloc[df_rows - self.df_test_len:, :]
+            # self.split_ohlcv_df()
             return self.df_train_len, self.df_val_len, self.df_test_len
 
-    def split_ohlcv_df(self):
-        pair_symbol = self.dataset_profile.use_symbols_pairs[0]
-        timeframe = self.dataset_profile.timeframe
-        ohlcv_df = self.features.ohlcv_base[f"{pair_symbol}-{timeframe}"].df.copy()
-        ohlcv_df = ohlcv_df.drop(index=self.features.drop_idxs)
-        df_rows = ohlcv_df.shape[0]
-        self.dataset.ohlcv_train_df = ohlcv_df.iloc[:self.df_train_len, :]
-        self.df_val_len = df_rows - (self.df_train_len + self.dataset_profile.gap_timeframes)
-        if self.df_test_len is None:
-            self.dataset.ohlcv_val_df = self.dataset.features_df.iloc[self.df_train_len + self.dataset_profile.gap_timeframes:, :]
-        else:
-            self.dataset.ohlcv_val_df = ohlcv_df.iloc[
-                                      self.df_train_len + self.dataset_profile.gap_timeframes: self.df_val_len + self.df_train_len + self.dataset_profile.gap_timeframes,
-                                      :]
-            self.dataset.test_df = ohlcv_df.iloc[df_rows - self.df_test_len:, :]
-        pass
+    # def split_ohlcv_df(self):
+    #     pair_symbol = self.dataset_profile.use_symbols_pairs[0]
+    #     timeframe = self.dataset_profile.timeframe
+    #     ohlcv_df = self.features.ohlcv_base[f"{pair_symbol}-{timeframe}"].df.copy()
+    #     ohlcv_df = ohlcv_df.drop(index=self.features.drop_idxs)
+    #     self.dataset.ohlcv_df = ohlcv_df
+    #     df_rows = ohlcv_df.shape[0]
+    #     self.dataset.ohlcv_train_df = ohlcv_df.iloc[:self.df_train_len, :]
+    #     self.df_val_len = df_rows - (self.df_train_len + self.dataset_profile.gap_timeframes)
+    #     if self.df_test_len is None:
+    #         self.dataset.ohlcv_val_df = self.dataset.features_df.iloc[self.df_train_len + self.dataset_profile.gap_timeframes:, :]
+    #     else:
+    #         self.dataset.ohlcv_val_df = ohlcv_df.iloc[
+    #                                   self.df_train_len + self.dataset_profile.gap_timeframes: self.df_val_len + self.df_train_len + self.dataset_profile.gap_timeframes,
+    #                                   :]
+    #         self.dataset.ohlcv_test_df = ohlcv_df.iloc[df_rows - self.df_test_len:, :]
+    #     pass
 
     def get_train_generator(self, x_Train_data, y_Train_data):
         self.dataset.train_gen = TSDataGenerator(data=x_Train_data,
