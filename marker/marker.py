@@ -6,6 +6,8 @@ from datamodeling.datafeatures import DSProfile
 import pandas as pd
 import numpy as np
 
+__version__ = 0.0002
+
 class Marker():
     def __init__(self, loader: DataLoad):
         self.loader = loader
@@ -251,7 +253,9 @@ class Marker():
         # else:
         #     cols_create = self.cols_create
         features_df = self.get_feature_datetime(self.source_df, cols_create=self.cols_create)
-
+        features_df["open"] = self.source_df["open"].copy()
+        features_df["high"] = self.source_df["high"].copy()
+        features_df["low"] = self.source_df["low"].copy()
         features_df["close"] = self.source_df["close"].copy()
         features_df["volume"] = self.source_df["volume"].copy()
         features_df["log_close"] = np.log(self.source_df["close"])
@@ -278,17 +282,24 @@ class Marker():
         self.y_df = trend_df
         return self.y_df
 
-    def create_dataset_df(self, symbol, timeframe, target_directory='', save_file=True, weight=0.15):
+    def create_dataset_df(self, symbol, timeframe, target_directory='', save_file=True, weight=0.055):
         self.symbol = symbol
         self.timeframe = timeframe
         dataset_df = self.collect_features()
         dataset_df['y'] = self.create_power_trend(weight=weight)
+        uniques, counts = np.unique(dataset_df['y'].values, return_counts=True)
+        msg_2 = ""
+        for unq, cnt in zip(uniques, counts):
+            msg_2 += f"Unique: {unq} {cnt}\n"
         msg = f"Pair: {self.symbol} - {self.timeframe}\n" \
               f"Dataframe shape: {dataset_df.shape} \n" \
+              f"Trend weight: {weight}\n" \
               f"Start date: {self.loader.ohlcvbase[f'{self.symbol}-{self.timeframe}'].df.index[0]}\n" \
-              f"End date: {self.loader.ohlcvbase[f'{self.symbol}-{self.timeframe}'].df.index[-1]}\n"
+              f"End date: {self.loader.ohlcvbase[f'{self.symbol}-{self.timeframe}'].df.index[-1]}\n" \
+              f"{msg_2}"
+
         print(msg)
-        print(dataset_df.head(5).to_string())
+        print(dataset_df.head(5).to_string(), f'\n')
         if save_file:
             path_filename = os.path.join(target_directory, self.timeframe, f'{self.symbol}-{self.timeframe}.csv')
             dataset_df.to_csv(path_filename)
@@ -301,7 +312,6 @@ if __name__ == "__main__":
                                   start_period='2021-11-01 00:00:00',
                                   end_period='2021-12-05 23:59:59',
                                   )
-    #symbol = "ETHUSDT"
     mr = Marker(loaded_crypto_data)
-    mr.create_dataset_df("ETHUSDT", timeframe="1m", target_directory="../source_ds")
-    mr.create_dataset_df("BTCUSDT", timeframe="1m", target_directory="../source_ds")
+    mr.create_dataset_df("ETHUSDT", timeframe="1m", target_directory="../source_ds", weight=0.055)
+    mr.create_dataset_df("BTCUSDT", timeframe="1m", target_directory="../source_ds", weight=0.055)
