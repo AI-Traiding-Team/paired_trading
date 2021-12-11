@@ -403,7 +403,7 @@ class DataFeatures:
         return self.y_df
 
     def create_power_trend(self, weight):
-        pair_symbol = self.pairs_symbols[2]
+        pair_symbol = self.ds_profile.use_symbols_pairs[2]
         timeframe = self.ds_profile.timeframe
         self.source_df_3 = self.ohlcv_base[f"{pair_symbol}-{timeframe}"].df.copy()
         ohlcv_df = self.source_df_3
@@ -413,6 +413,18 @@ class DataFeatures:
         trend_df = trend_df.drop(index=self.drop_idxs)
         ohe_df = pd.get_dummies(trend_df["trend"], dtype=float)
         self.y_df = ohe_df
+        return self.y_df
+
+    def create_power_trend_binary(self, weight):
+        pair_symbol = self.ds_profile.use_symbols_pairs[2]
+        timeframe = self.ds_profile.timeframe
+        self.source_df_3 = self.ohlcv_base[f"{pair_symbol}-{timeframe}"].df.copy()
+        ohlcv_df = self.source_df_3
+        trend_df = pd.DataFrame()
+        trend_df["trend"] = self.calculate_trend(ohlcv_df, weight)
+        trend_df.loc[trend_df["trend"] == -1, "trend"] = 0.0
+        trend_df = trend_df.drop(index=self.drop_idxs)
+        self.y_df = trend_df
         return self.y_df
 
     # # Предсказание силы движения по модулю (п1 переводим в ohe [1, 2, 3, 4, 5]) - классификация.

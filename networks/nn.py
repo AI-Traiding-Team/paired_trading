@@ -135,6 +135,7 @@ class MainNN:
                            ):
 
         def residual_block(x, kernels, stride):
+            tf.keras.backend.set_floatx('float64')
             out = Conv1D(kernels, stride, padding='same')(x)
             out = ReLU()(out)
             out = Conv1D(kernels, stride, padding='same')(out)
@@ -160,7 +161,7 @@ class MainNN:
         if model_type == 'regression':
             x_out = Dense(1, activation='linear')(x)
         elif model_type == "binary_crossentropy":
-            x_out = Dense(num_classes, activation='sigmoid')(x)
+            x_out = Dense(1, activation='sigmoid')(x)
         elif model_type == "categorical_crossentropy":
             x_out = Dense(num_classes, activation='softmax')(x)
         model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
@@ -354,6 +355,27 @@ class MainNN:
             prediction = self.keras_model.predict(x)  # Распознаём наш пример
             # print('\n',prediction)
             prediction = np.argmax(prediction)  # Получаем индекс самого большого элемента (это итоговая цифра)
+            if prediction == np.argmax(y_test_org[i]):
+                conv_test.append('True')
+            else:
+                conv_test.append('False')
+
+            print(f'Index: {i}, Prediction: {prediction}, Real: {np.argmax(y_test_org[i])},\t====> {y_test_org[i]} {conv_test[i]}')
+            pass
+
+    def check_binary(self):
+        x_test = self.dataset.x_Test[-600:-500]
+        y_test_org = self.dataset.y_Test[-600:-500]
+        conv_test = []
+        for i in range(len(x_test)):
+            x = x_test[i]
+            x = np.expand_dims(x, axis=0)
+            prediction = self.keras_model.predict(x)
+            # print('\n',prediction)
+            if prediction > 0.5:
+                prediction = 1
+            else:
+                prediction = 0
             if prediction == np.argmax(y_test_org[i]):
                 conv_test.append('True')
             else:
