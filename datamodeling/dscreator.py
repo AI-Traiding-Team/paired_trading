@@ -198,13 +198,13 @@ class DSCreator:
     #     ohlcv_df = ohlcv_df.drop(index=self.features.drop_idxs)
     #     self.dataset.ohlcv_df = ohlcv_df
     #     df_rows = ohlcv_df.shape[0]
-    #     self.dataset.ohlcv_train_df = ohlcv_df.iloc[:self.df_train_len, :]
-    #     self.df_val_len = df_rows - (self.df_train_len + self.dataset_profile.gap_timeframes)
+    #     self.dataset.ohlcv_train_df = ohlcv_df.iloc[:self.train_df_len, :]
+    #     self.df_val_len = df_rows - (self.train_df_len + self.dataset_profile.gap_timeframes)
     #     if self.df_test_len is None:
-    #         self.dataset.ohlcv_val_df = self.dataset.features_df.iloc[self.df_train_len + self.dataset_profile.gap_timeframes:, :]
+    #         self.dataset.ohlcv_val_df = self.dataset.features_df.iloc[self.train_df_len + self.dataset_profile.gap_timeframes:, :]
     #     else:
     #         self.dataset.ohlcv_val_df = ohlcv_df.iloc[
-    #                                   self.df_train_len + self.dataset_profile.gap_timeframes: self.df_val_len + self.df_train_len + self.dataset_profile.gap_timeframes,
+    #                                   self.train_df_len + self.dataset_profile.gap_timeframes: self.df_val_len + self.train_df_len + self.dataset_profile.gap_timeframes,
     #                                   :]
     #         self.dataset.ohlcv_test_df = ohlcv_df.iloc[df_rows - self.df_test_len:, :]
     #     pass
