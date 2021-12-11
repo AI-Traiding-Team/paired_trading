@@ -209,9 +209,9 @@ class MainNN:
                                   expand_nested=True,
                                   dpi=96,
                                   )
-        self.history = self.keras_model.fit(dataset.train_gen,
+        self.history = self.keras_model.fit(self.dataset.train_gen,
                                             epochs=self.nn_profile.epochs,
-                                            validation_data=dataset.val_gen,
+                                            validation_data=self.dataset.val_gen,
                                             verbose=self.nn_profile.verbose,
                                             )
         path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.nn_profile.experiment_name}_{self.dataset.name}.h5")

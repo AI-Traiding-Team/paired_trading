@@ -7,7 +7,7 @@ from analyze.dataload import DataLoad
 from dataclasses import dataclass
 # sys.path.insert(1, os.path.join(os.getcwd(), 'analyze'))
 
-__version__ = 0.0009
+__version__ = 0.0010
 
 
 @dataclass(init=True)
@@ -16,6 +16,8 @@ class DSProfile:
     use_symbols_pairs = ("BTCUSDT", "ETHUSDT")
     timeframe: str = '15m'
     Y_data: str = "close1-close2"
+    power_trend = 0.15
+
     scaler: str = "robust"
     """  
     If train_size + val_size < 1.0 
@@ -35,6 +37,7 @@ class DSProfile:
 
 class DataFeatures:
     def __init__(self, loader: DataLoad):
+
         self.drop_idxs: list = []
         self.loader = loader
         self.ohlcv_base = self.loader.ohlcvbase
@@ -53,7 +56,9 @@ class DataFeatures:
         self.clear_na_flag = False
         self.source_df_1 = None
         self.source_df_2 = None
+        self.source_df_3 = None
         self.features_df = None
+        self.ds_profile = None
         self.y_df = pd.DataFrame()
 
     @staticmethod
@@ -175,7 +180,7 @@ class DataFeatures:
                    input_df["low"][0],  # [3] - low
                    input_df["close"][0],  # [4] - CLOSE
                    input_df["volume"][0],
-                   input_df["trades"][0]
+                   # input_df["trades"][0]
                    ]
         FP_first_price = x_bar_0[4]
         xH_highest_price = x_bar_0[2]
@@ -196,7 +201,7 @@ class DataFeatures:
                      input_df["low"][idx],
                      input_df["close"][idx],
                      input_df["volume"][idx],
-                     input_df["trades"][idx]
+                     # input_df["trades"][idx]
                      ]
             # print(x_bar)
             # print(x_bar[4])
@@ -225,7 +230,7 @@ class DataFeatures:
                      input_df["low"][ix],
                      input_df["close"][ix],
                      input_df["volume"][ix],
-                     input_df["trades"][ix]
+                     # input_df["trades"][ix]
                      ]
             W = weighted_W(ix, W)
             if Cid > 0:
@@ -263,7 +268,7 @@ class DataFeatures:
                  input_df["low"][ix],
                  input_df["close"][ix],
                  input_df["volume"][ix],
-                 input_df["trades"][ix]
+                 # input_df["trades"][ix]
                  ]
         if Cid > 0:
             if x_bar[2] > xH_highest_price:
@@ -318,9 +323,10 @@ class DataFeatures:
         return diff_df
 
     def collect_features(self, profile: DSProfile):
-        pair_symbol_1 = profile.use_symbols_pairs[0]
-        pair_symbol_2 = profile.use_symbols_pairs[1]
-        timeframe = profile.timeframe
+        self.ds_profile = profile
+        pair_symbol_1 = self.ds_profile.use_symbols_pairs[0]
+        pair_symbol_2 = self.ds_profile.use_symbols_pairs[1]
+        timeframe = self.ds_profile.timeframe
         features_df = pd.DataFrame()
         self.source_df_1 = self.ohlcv_base[f"{pair_symbol_1}-{timeframe}"].df.copy()
         self.source_df_2 = self.ohlcv_base[f"{pair_symbol_2}-{timeframe}"].df.copy()
@@ -396,15 +402,17 @@ class DataFeatures:
         # unique = np.unique(self.y_df, return_counts=True )
         return self.y_df
 
-
-    def create_weighted_tren(self):
-        temp_df = pd.DataFrame()
-        self.calculate_trend()
-        temp_df = temp_df.drop(index=self.drop_idxs)
+    def create_power_trend(self, weight):
+        pair_symbol = self.pairs_symbols[2]
+        timeframe = self.ds_profile.timeframe
+        ohlcv_df = self.ohlcv_base[f"{pair_symbol}-{timeframe}"].df.copy()
+        trend_df = pd.DataFrame()
+        trend_df["trend"] = self.calculate_trend(ohlcv_df, weight)
+        trend_df.loc[trend_df["trend"] == -1, "trend"] = 0
+        trend_df = trend_df.drop(index=self.drop_idxs)
+        ohe_df = pd.get_dummies(trend_df["trend"], dtype=float)
+        self.y_df = ohe_df
         return self.y_df
-
-
-
 
     # # Предсказание силы движения по модулю (п1 переводим в ohe [1, 2, 3, 4, 5]) - классификация.
     # # Идея в том, чтобы разделить предсказание направления [0, 1] и силу этого движения
@@ -490,7 +498,7 @@ class DataFeatures:
         #     temp_df.loc[(temp_df["power"] > power_list[idx-1]) & (temp_df["power"] <= power_list[idx])] = idx-1
         # # temp_df = temp_df.drop(index=self.drop_idxs)
         unique = np.unique(temp_df.iloc[:,], return_counts=True )
-        ohe = pd.get_dummies(temp_df, dtype=float)
+        ohe_df = pd.get_dummies(temp_df, dtype=float)
         self.y_df = ohe
         return self.y_df.copy()
 

@@ -2,7 +2,7 @@ from datamodeling import *
 from analyze import DataLoad
 from networks import *
 
-__version__ = 0.0001
+__version__ = 0.0003
 
 
 class TrainNN:
@@ -15,6 +15,7 @@ class TrainNN:
         self.dataset_profile.Y_data = "power_trend"
         self.dataset_profile.timeframe = "1m"
         self.dataset_profile.use_symbols_pairs = ("ETHUSDT", "BTCUSDT", "ETHBTC")
+        self.dataset_profile.power_trend = 0.075
 
         """ Default options for dataset window"""
         self.dataset_profile.tsg_window_length = 40
@@ -34,10 +35,11 @@ class TrainNN:
         pass
 
     def train_model(self):
-        test_nn.train_model(self.dts_power_trend)
+        self.nn_profile.num_classes = 2
+        self.nn_network.train_model(self.dts_power_trend)
         # pred = test_nn.get_predict()
         # # print(pred)
-        test_nn.show_categorical()
+        self.nn_network.show_categorical()
         pass
 
 if __name__ == "__main__":

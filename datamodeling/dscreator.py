@@ -122,8 +122,6 @@ class DataSet:
         self.y_Val = None
         self.x_Test = None
         self.y_Test = None
-        self.x_Val_array = np.array()
-        self.x_Test_array = np.array()
         self.features_scaler = object
         self.targets_scaler = object
         self.train_gen = None
@@ -305,7 +303,8 @@ class DSCreator:
             self.create_close1_close2_power()
             return self.dataset
         elif self.dataset_profile.Y_data == "power_trend":
-            self.dataset.y_df = self.features.create_y_close1_close2_sub_power()
+            weight = self.dataset.dataset_profile.power_trend
+            self.dataset.y_df = self.features.create_power_trend(weight)
             self.create_power_trend()
             return self.dataset
         else:
