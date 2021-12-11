@@ -28,7 +28,9 @@ class TrainNN:
         self.dataset_profile.tsg_overlap = 0
 
         self.dsc = DSCreator(loaded_crypto_data, self.dataset_profile)
+        print("Инициализируем подготовку датасета")
         self.dts_power_trend = self.dsc.create_dataset()
+
         self.nn_profile = NNProfile("categorical_crossentropy")
         self.nn_profile.learning_rate = 1e-4
         self.nn_profile.experiment_name = f"{self.nn_profile.experiment_name}_categorical_trend"
@@ -37,16 +39,14 @@ class TrainNN:
         pass
 
     def train_model(self):
+        self.dts_power_trend = self.dsc.create_dataset()
         self.nn_profile.num_classes = 2
         self.nn_network.train_model(self.dts_power_trend)
-        # pred = test_nn.get_predict()
-        # # print(pred)
         self.nn_network.show_categorical()
         pass
 
     def get_dataset(self):
         return self.dts_power_trend
-
 
     def check_trends_weights(self, use_col: str = "trend" ) -> None:
         """
@@ -57,7 +57,7 @@ class TrainNN:
             None:
         """
         for weight in self.power_trends_list:
-            print(f"Calculating trend using trend power = {weight}")
+            print(f"Считаем тренд с power = {weight}")
             data_df = self.dsc.features.source_df_3
             trend_df = self.dsc.features.calculate_trend(data_df, weight)
             # for visualization we use scaling of trend = 1 to data_df["close"].max()
@@ -85,6 +85,13 @@ class TrainNN:
             plt.title(f"Trend with weight: {weight}")
         plt.show()
         pass
+
+    def show_trend_predict(self):
+        # data_df = self.dts_power_trend.
+        pass
+
+
+
 
 
 if __name__ == "__main__":
@@ -118,8 +125,10 @@ if __name__ == "__main__":
     Model 4, 
     Classification, trend with thresholds
     """
+    print("Считаем возможные варианты трендов")
     tr.check_trends_weights()
     tr.train_model()
+
 
 
 

@@ -1,81 +1,15 @@
 import os
 import sys
 from typing import Tuple
-
 import numpy as np
 import tensorflow as tf
 from dataclasses import dataclass
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.optimizers import SGD
-from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Input, Flatten, Conv1D, ReLU, ELU, MaxPool1D
 from datamodeling.dscreator import DataSet
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 __version__ = 0.0016
-
-
-# def get_regression_model(batch_shape=(0, 299, 299, 3),
-#                          last_dense=512,
-#                          num_classes=1,
-#                          optimizer=tf.keras.optimizers.Adam()):
-#     base_model = tf.keras.applications.ResNet50V2(include_top=False,
-#                                                   weights=None,
-#                                                   input_tensor=None,
-#                                                   input_shape=None,
-#                                                   pooling=None,
-#                                                   # classes=classes,
-#                                                   # **kwargs,
-#                                                   )
-#     base_model.layers.pop(0)
-#     new_in = Input(batch_shape=batch_shape)
-#     # new_in = Flatten()(new_in)
-#     """  here is new 2d dimension Conv"""
-#     # new_in = Conv2d()(new_in)
-#     new_outputs = base_model(new_in)
-#     x = GlobalAveragePooling2D()(new_outputs)
-#     x = Dense(last_dense, activation='elu')(x)
-#     x_out = Dense(num_classes, activation='linear')(x)
-#     new_model = Model(inputs=new_in, outputs=x_out)
-#
-#     new_model.summary()
-#     new_model.compile(optimizer=optimizer,
-#                       loss='mean_squared_error',
-#                       )
-#     return new_model
-
-
-# def get_classification_model(batch_shape=(0, 299, 299, 3),
-#                              last_dense=512,
-#                              num_classes=1,
-#                              optimizer=tf.keras.optimizers.Adam()):
-#     base_model = tf.keras.applications.ResNet50V2(include_top=False,
-#                                                   weights=None,
-#                                                   input_tensor=None,
-#                                                   input_shape=None,
-#                                                   pooling=None,
-#                                                   # classes=classes,
-#                                                   # **kwargs,
-#                                                   )
-#     base_model.layers.pop(0)
-#     new_in = Input(batch_shape=batch_shape)
-#     new_in = Flatten()(new_in)
-#     new_in = Dense(batch_shape[1*4], activation='elu')(new_in)
-#     new_in = Dense(batch_shape[1*4], activation='elu')(new_in)
-#     """  here is new 2d dimension Conv"""
-#     # new_in = Conv2d()(new_in)
-#     new_outputs = base_model(new_in)
-#     x = GlobalAveragePooling2D()(new_outputs)
-#     x = Dense(last_dense, activation='elu')(x)
-#     x_out = Dense(num_classes, activation='linear')(x)
-#     new_model = Model(inputs=new_in, outputs=x_out)
-#     new_model.summary()
-#     new_model.compile(optimizer=optimizer,
-#                       loss='binary_crossentropy',
-#                       metrics=['accuracy'],
-#                       )
-#     return new_model
 
 
 @dataclass
@@ -116,12 +50,12 @@ class NNProfile:
 class MainNN:
     def __init__(self,
                  nn_profile: NNProfile):
+        self.y_Pred = None
         self.x_Test = None
         self.y_Test = None
         self.input_shape = None
         self.nn_profile = nn_profile
         self.history = None
-        self.y_pred: np.array
         self.keras_model = tf.keras.models.Model
         self.optimizer = None
         self.dataset = DataSet
@@ -198,6 +132,7 @@ class MainNN:
         pass
 
     def train_model(self, dataset: DataSet):
+
         self.dataset = dataset
         self.input_shape = dataset.input_shape
         self.set_model()
@@ -325,8 +260,8 @@ class MainNN:
         pass
 
     def check_categorical(self):
-        x_test = self.dataset.x_Test[-540:-500]
-        y_test_org = self.dataset.y_Test[-540:-500]
+        x_test = self.dataset.x_Test[-560:-500]
+        y_test_org = self.dataset.y_Test[-560:-500]
         conv_test = []
         for i in range(len(x_test)):
             x = x_test[i]
@@ -354,6 +289,8 @@ class MainNN:
         self.figshow_base()
         self.check_categorical()
         pass
+
+
 
 if __name__ == "__main__":
     test_nn_profile = NNProfile()

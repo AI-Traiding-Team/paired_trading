@@ -23,7 +23,7 @@ from analyze.dataload import DataLoad
 from datamodeling.datafeatures import DataFeatures, DSProfile
 
 
-__version__ = 0.0010
+__version__ = 0.0011
 
 
 def get_local_timezone_name():
@@ -170,6 +170,7 @@ class DSCreator:
         df_rows = self.dataset.features_df.shape[0]
         df_train_len = int(df_rows * self.dataset_profile.train_size)
         df_val_len = df_rows - (df_train_len + self.dataset_profile.gap_timeframes)
+        # ohlcv_symbol1 =
         self.dataset.train_df = self.dataset.features_df.iloc[:df_train_len, :]
         if self.dataset_profile.train_size + self.dataset_profile.val_size == 1.0:
             self.dataset.val_df = self.dataset.features_df.iloc[df_train_len + self.dataset_profile.gap_timeframes:, :]
@@ -247,7 +248,6 @@ class DSCreator:
         pass
 
     def create_close1_close2_trend(self):
-
         if self.dataset_profile.scaler == "robust":
             self.dataset.features_scaler = RobustScaler().fit(self.dataset.features_df.values)
             self.dataset.targets_scaler = None
@@ -289,22 +289,28 @@ class DSCreator:
         pass
 
     def create_dataset(self) -> DataSet:
-        self.dataset.dataset_profile = DSProfile()
+        # self.dataset.dataset_profile = DSProfile()
+        print("Cоздаем X (Feature) часть датасета...")
         self.dataset.features_df = self.features.collect_features(self.dataset_profile)
+        print(self.dataset.features_df.tail().to_string())
         self.dataset.name = f'{self.dataset_profile.use_symbols_pairs[0]}-{self.dataset_profile.use_symbols_pairs[1]}-{self.dataset_profile.timeframe}'
+        print("Создаем Y (True) часть датасета...")
         if self.dataset_profile.Y_data == "close1-close2":
             self.dataset.y_df = self.features.create_y_close1_close2_sub()
         elif self.dataset_profile.Y_data == "close1-close2_trend":
             self.dataset.y_df = self.features.create_y_close1_close2_sub_trend()
+            print(self.dataset.y_df.tail().to_string())
             self.create_close1_close2_trend()
             return self.dataset
         elif self.dataset_profile.Y_data == "close1-close2_power":
             self.dataset.y_df = self.features.create_y_close1_close2_sub_power()
+            print(self.dataset.y_df.tail().to_string())
             self.create_close1_close2_power()
             return self.dataset
         elif self.dataset_profile.Y_data == "power_trend":
             weight = self.dataset.dataset_profile.power_trend
             self.dataset.y_df = self.features.create_power_trend(weight)
+            print(self.dataset.y_df.tail().to_string())
             self.create_power_trend()
             return self.dataset
         else:
