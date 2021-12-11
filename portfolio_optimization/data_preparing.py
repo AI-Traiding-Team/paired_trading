@@ -27,6 +27,7 @@ for i, filename in enumerate(filenames):
     ticker = filename[:indices[0]]
     tickers.append(ticker)
     df_temp = pd.read_csv(f'{source_path}/{filename}')
+    print(df_temp)
     df_temp.set_index('datetimeindex', inplace=True)
     df_temp.index = pd.to_datetime(df_temp.index)
     df = pd.merge(df, df_temp['close'], on=['datetimeindex'], how="left")

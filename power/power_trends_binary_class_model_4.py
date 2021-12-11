@@ -32,7 +32,7 @@ class TrainNN:
         self.nn_profile = NNProfile("categorical_crossentropy")
         self.nn_profile.learning_rate = 1e-4
         self.nn_profile.experiment_name = f"{self.nn_profile.experiment_name}_categorical_trend"
-        self.nn_profile.epochs = 350
+        self.nn_profile.epochs = 35
         self.nn_network = MainNN(self.nn_profile)
         pass
 
@@ -85,17 +85,17 @@ class TrainNN:
         for i, weight in enumerate(self.power_trends_list):
             ax1 = fig.add_subplot(weights_list_len, 1, i + 1)
             # Don't allow the axis to be on top of your data
-            ax1.set_axisbelow(True)
+            # ax1.set_axisbelow(True)
             # Turn on the minor TICKS, which are required for the minor GRID
-            ax1.minorticks_on()
+            # ax1.minorticks_on()
             # Customize the major grid
-            ax1.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+            # ax1.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
             # Customize the minor grid
-            ax1.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+            # ax1.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
             # ax1.plot(data_df.index, data_df["close"],  'b-')
             # ax2 = ax1.twinx()
             ax1.plot(data_df.index, data_df[f"trend_{weight}"], data_df.index, data_df["close"])
-            ax1.set_ylabel(f'weight = {weight}', color='r')
+            ax1.set_ylabel(f'weight = {weight}')
             plt.title(f"Trend with weight: {weight}")
         plt.show()
         pass
