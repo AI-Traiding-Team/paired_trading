@@ -2,7 +2,7 @@ from datamodeling import *
 from analyze import DataLoad
 from networks import *
 
-__version__ = 0.0004
+__version__ = 0.0005
 
 
 class TrainNN:
@@ -32,7 +32,7 @@ class TrainNN:
         self.nn_profile = NNProfile("categorical_crossentropy")
         self.nn_profile.learning_rate = 1e-4
         self.nn_profile.experiment_name = f"{self.nn_profile.experiment_name}_categorical_trend"
-        self.nn_profile.epochs = 350
+        self.nn_profile.epochs = 50
         self.nn_network = MainNN(self.nn_profile)
         pass
 
@@ -48,9 +48,7 @@ class TrainNN:
         return self.dts_power_trend
 
 
-    def check_trends_weights(self,
-                             use_col: str = "trend"
-                             ) -> None:
+    def check_trends_weights(self, use_col: str = "trend" ) -> None:
         """
         Args:
             use_col (str):          name of column. default "trend"
@@ -58,8 +56,8 @@ class TrainNN:
         Returns:
             None:
         """
-
         for weight in self.power_trends_list:
+            print(f"Calculating trend using trend power = {weight}")
             data_df = self.dsc.features.source_df_3
             trend_df = self.dsc.features.calculate_trend(data_df, weight)
             # for visualization we use scaling of trend = 1 to data_df["close"].max()
@@ -70,9 +68,7 @@ class TrainNN:
             trend_df.loc[(trend_df["trend"] == -1), "trend"] = min_close
             trend_df.loc[(trend_df["trend"] == 0), "trend"] = mean_close
             data_df[f"trend_{weight}"] = trend_df[use_col]
-
         col_list = data_df.columns.to_list()
-
         try:
             col_list.index("close")
         except ValueError:
@@ -80,20 +76,10 @@ class TrainNN:
             sys.exit(msg)
 
         weights_list_len = len(self.power_trends_list)
-        fig = plt.figure(figsize=(45, 6 * weights_list_len))
+        fig = plt.figure(figsize=(20, 6 * weights_list_len))
 
         for i, weight in enumerate(self.power_trends_list):
             ax1 = fig.add_subplot(weights_list_len, 1, i + 1)
-            # Don't allow the axis to be on top of your data
-            ax1.set_axisbelow(True)
-            # Turn on the minor TICKS, which are required for the minor GRID
-            ax1.minorticks_on()
-            # Customize the major grid
-            ax1.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
-            # Customize the minor grid
-            ax1.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-            # ax1.plot(data_df.index, data_df["close"],  'b-')
-            # ax2 = ax1.twinx()
             ax1.plot(data_df.index, data_df[f"trend_{weight}"], data_df.index, data_df["close"])
             ax1.set_ylabel(f'weight = {weight}', color='r')
             plt.title(f"Trend with weight: {weight}")
