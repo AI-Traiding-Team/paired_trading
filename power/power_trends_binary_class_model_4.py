@@ -133,7 +133,7 @@ if __name__ == "__main__":
     Classification, trend with thresholds
     """
     tr.check_trends_weights()
-    # tr.train_model()
+    tr.train_model()
 
 
 
