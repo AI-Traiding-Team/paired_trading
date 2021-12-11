@@ -7,13 +7,13 @@ from analyze.dataload import DataLoad
 from dataclasses import dataclass
 # sys.path.insert(1, os.path.join(os.getcwd(), 'analyze'))
 
-__version__ = 0.0008
+__version__ = 0.0009
 
 
 @dataclass(init=True)
 class DSProfile:
     features_list: Tuple = ()
-    use_symbols_pairs: Tuple[str, str] = ("BTCUSDT", "ETHUSDT")
+    use_symbols_pairs = ("BTCUSDT", "ETHUSDT")
     timeframe: str = '15m'
     Y_data: str = "close1-close2"
     scaler: str = "robust"
@@ -399,7 +399,7 @@ class DataFeatures:
 
     def create_weighted_tren(self):
         temp_df = pd.DataFrame()
-        calculate_trend()
+        self.calculate_trend()
         temp_df = temp_df.drop(index=self.drop_idxs)
         return self.y_df
 

@@ -23,7 +23,7 @@ from analyze.dataload import DataLoad
 from datamodeling.datafeatures import DataFeatures, DSProfile
 
 
-__version__ = 0.0009
+__version__ = 0.0010
 
 
 def get_local_timezone_name():
@@ -233,6 +233,21 @@ class DSCreator:
         self.prepare_datagens(x_arr, y_arr)
         pass
 
+    def create_power_trend(self):
+
+        if self.dataset_profile.scaler == "robust":
+            self.dataset.features_scaler = RobustScaler().fit(self.dataset.features_df.values)
+            self.dataset.targets_scaler = None
+        else:
+            msg = "Error: Unknown scaler preparation type"
+            sys.exit(msg)
+
+        x_arr = self.dataset.features_scaler.transform(self.dataset.features_df.values)
+        """ check """
+        y_arr = self.dataset.y_df.values
+        self.prepare_datagens(x_arr, y_arr)
+        pass
+
     def create_close1_close2_trend(self):
 
         if self.dataset_profile.scaler == "robust":
@@ -288,6 +303,10 @@ class DSCreator:
         elif self.dataset_profile.Y_data == "close1-close2_power":
             self.dataset.y_df = self.features.create_y_close1_close2_sub_power()
             self.create_close1_close2_power()
+            return self.dataset
+        elif self.dataset_profile.Y_data == "power_trend":
+            self.dataset.y_df = self.features.create_y_close1_close2_sub_power()
+            self.create_power_trend()
             return self.dataset
         else:
             msg = "Error: Unknown dataset preparation type"

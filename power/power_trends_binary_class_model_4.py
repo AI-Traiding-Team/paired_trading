@@ -7,34 +7,34 @@ __version__ = 0.0001
 
 class TrainNN:
     def __init__(self):
-        pass
-
-    def train_model(self):
         """
         Model 4,
         Classification, trend with thresholds
         """
-        dataset_4_profile = DSProfile()
-        dataset_4_profile.Y_data = "close1-close2_trend"
-        dataset_4_profile.timeframe = "1m"
+        self.dataset_profile = DSProfile()
+        self.dataset_profile.Y_data = "power_trend"
+        self.dataset_profile.timeframe = "1m"
+        self.dataset_profile.use_symbols_pairs = ("ETHUSDT", "BTCUSDT", "ETHBTC")
 
         """ Default options for dataset window"""
-        dataset_4_profile.tsg_window_length = 40
-        dataset_4_profile.tsg_sampling_rate = 1
-        dataset_4_profile.tsg_stride = 1
-        dataset_4_profile.tsg_start_index = 0
-        dataset_4_profile.tsg_overlap = 0
-
+        self.dataset_profile.tsg_window_length = 40
+        self.dataset_profile.tsg_sampling_rate = 1
+        self.dataset_profile.tsg_stride = 1
+        self.dataset_profile.tsg_start_index = 0
         """ Warning! Change this qty if using .shift() more then 2 """
-        dsc = DSCreator(loaded_crypto_data, dataset_4_profile)
-        dts_close1_close2_trend = dsc.create_dataset()
+        self.dataset_profile.tsg_overlap = 0
 
-        binary_profile = NNProfile("binary_crossentropy")
-        binary_profile.learning_rate = 1e-4
-        binary_profile.experiment_name = f"{binary_profile.experiment_name}_close1_close2_trend"
-        binary_profile.epochs = 350
-        test_nn = MainNN(binary_profile)
-        test_nn.train_model(dts_close1_close2_trend)
+        self.dsc = DSCreator(loaded_crypto_data, self.dataset_profile)
+        self.dts_power_trend = self.dsc.create_dataset()
+        self.nn_profile = NNProfile("categorical_crossentropy")
+        self.nn_profile.learning_rate = 1e-4
+        self.nn_profile.experiment_name = f"{self.nn_profile.experiment_name}_categorical_trend"
+        self.nn_profile.epochs = 350
+        self.nn_network = MainNN(self.nn_profile)
+        pass
+
+    def train_model(self):
+        test_nn.train_model(self.dts_power_trend)
         # pred = test_nn.get_predict()
         # # print(pred)
         test_nn.show_categorical()
