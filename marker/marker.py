@@ -1,12 +1,13 @@
 import os.path
 
-from datamodeling.dscreator import DSCreator
+# from datamodeling.dscreator import DSCreator
 from analyze import DataLoad
-from datamodeling.datafeatures import DSProfile
+# from datamodeling.datafeatures import DSProfile
 import pandas as pd
 import numpy as np
+from maketarget.mother import BigFatMommyMakesTargetMarkers
 
-__version__ = 0.0003
+__version__ = 0.0004
 
 class Marker():
     def __init__(self, loader: DataLoad):
@@ -282,13 +283,13 @@ class Marker():
         self.y_df = trend_df
         return self.y_df
 
-    def create_dataset_df(self, symbol, timeframe, target_directory='', save_file=True, weight=0.055):
+    def create_dataset_df_method_0(self, symbol, timeframe, target_directory='', save_file=True, weight=0.055):
         self.symbol = symbol
         self.timeframe = timeframe
         dataset_df = self.collect_features()
         dataset_df['Signal'] = self.create_power_trend(weight=weight)
         uniques, counts = np.unique(dataset_df['Signal'].values, return_counts=True)
-        msg_2 = ""
+        msg_2 = f"Signal type 2\n"
         for unq, cnt in zip(uniques, counts):
             msg_2 += f"Unique: {unq} {cnt}\n"
         msg = f"Pair: {self.symbol} - {self.timeframe}\n" \
@@ -305,15 +306,52 @@ class Marker():
             dataset_df.to_csv(path_filename)
         pass
 
-    def mark_all_loader_df(self, target_directory=''):
+    def create_dataset_df_method_1(self, symbol, timeframe, target_directory='', save_file=True, window_size=5):
+        big_mommy = BigFatMommyMakesTargetMarkers(window_size=window_size)
+        _ = self.collect_features()
+        self.source_df = self.loader.ohlcvbase[f"{self.symbol}-{self.timeframe}"].df.copy()
+        self.symbol = symbol
+        self.timeframe = timeframe
+        # dataset_df.columns = [item.lower().capitalize() for item in dataset_df.columns]
+        dataset_df = self.source_df.copy()
+        dataset_df = dataset_df.drop(index=self.drop_idxs)
+        dataset_df = big_mommy.mark_y(dataset_df)
+        uniques, counts = np.unique(dataset_df['Signal'].values, return_counts=True)
+        msg_2 = f"Signal type 1\n"
+        for unq, cnt in zip(uniques, counts):
+            msg_2 += f"Unique: {unq} {cnt}\n"
+
+        msg = f"Pair: {self.symbol} - {self.timeframe}\n" \
+              f"Dataframe shape: {dataset_df.shape} \n" \
+              f"Window size: {window_size}\n" \
+              f"Start date: {self.loader.ohlcvbase[f'{self.symbol}-{self.timeframe}'].df.index[0]}\n" \
+              f"End date: {self.loader.ohlcvbase[f'{self.symbol}-{self.timeframe}'].df.index[-1]}\n" \
+              f"{msg_2}"
+
+        print(msg)
+        print(dataset_df.head(5).to_string(), f'\n')
+        if save_file:
+            path_filename = os.path.join(target_directory, self.timeframe, f'{self.symbol}-{self.timeframe}.csv')
+            dataset_df.to_csv(path_filename)
+        pass
+
+    def mark_all_loader_df(self, target_directory='', signal_method=1,  window_size=5, weight=0.0275):
         for idx, (key, ohlcv_obj) in enumerate(self.loader.ohlcvbase.items()):
             self.symbol = ohlcv_obj.symbol_name
             self.timeframe = ohlcv_obj.timeframe
-            print(f'Symbol #{idx}')
-            self.create_dataset_df(self.symbol,
-                                   timeframe=self.timeframe,
-                                   target_directory=target_directory,
-                                   weight=0.0275)
+            if signal_method == 0:
+                print(f'Symbol #{idx}')
+                self.create_dataset_df_method_0(self.symbol,
+                                                timeframe=self.timeframe,
+                                                target_directory=target_directory,
+                                                weight=0.0275)
+            else:
+                print(f'Symbol #{idx}')
+                self.create_dataset_df_method_1(self.symbol,
+                                                timeframe=self.timeframe,
+                                                target_directory=target_directory,
+                                                window_size=window_size)
+
             pass
 
 
@@ -325,6 +363,8 @@ if __name__ == "__main__":
                                   end_period='2021-12-05 23:59:59',
                                   )
     mr = Marker(loaded_crypto_data)
-    mr.mark_all_loader_df(target_directory="../source_ds")
-    # mr.create_dataset_df("ETHUSDT", timeframe="1m", target_directory="../source_ds", weight=0.0275)
-    # mr.create_dataset_df("BTCUSDT", timeframe="1m", target_directory="../source_ds", weight=0.055)
+    # mr.mark_all_loader_df(target_directory="../source_ds", signal_method=0,  weight=0.0275)
+    mr.mark_all_loader_df(target_directory="../source_ds1", signal_method=1,  window_size=5)
+
+    # mr.create_dataset_df_method_0("ETHUSDT", timeframe="1m", target_directory="../source_ds", weight=0.0275)
+    # mr.create_dataset_df_method_1("ETHUSDT", timeframe="1m", target_directory="../source_ds1", window_size = 5)

@@ -298,6 +298,23 @@ class TrainNN:
         plt.show()
         pass
 
+    def backtest_test_dataset(self):
+        data_df = self.mrk_dataset.features_df[
+                  self.mrk_dataset.test_df_start_end[0]: self.mrk_dataset.test_df_start_end[
+                                                             1] - self.mrk_dataset.tsg_window_length]
+        trend_pred = self.keras_model.predict(self.mrk_dataset.x_Test)
+        trend_pred = trend_pred.flatten()
+        trend_pred_df = pd.DataFrame(data=trend_pred, columns=["trend"])
+        trend_pred_df.loc[(trend_pred_df["trend"] > 0.5), "trend"] = 1
+        trend_pred_df.loc[(trend_pred_df["trend"] <= 0.5), "trend"] = 0
+        data_df["Signal"] = trend_pred_df["trend"]
+        print("\nSignal (pred) dataframe data example for backtesting:")
+        print(data_df["Signal"].head().to_string(), f"\n")
+        uniques, counts = np.unique(data_df["Signal"].values, return_counts=True)
+        for unq, cnt in zip(uniques, counts):
+            print("Total:", unq, cnt)
+        return data_df
+
     def show_trend_predict(self):
         weight = self.power_trend
         print(f"\nВизуализируем результат")
