@@ -5,8 +5,9 @@ from networks import *
 import tensorflow as tf
 from tensorflow.keras.callbacks import ReduceLROnPlateau
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Input, Flatten, Conv1D, ReLU, ELU, MaxPool1D, Reshape, Dropout
+from backtesting import *
 
-__version__ = 0.0013
+__version__ = 0.0014
 
 
 class MarkedDataSet:
@@ -222,7 +223,7 @@ def get_resnet1d_model(
 
 class TrainNN:
     def __init__(self, mrk_dataset: MarkedDataSet):
-        self.power_trend = 0.055
+        self.power_trend = 0.0275
         self.net_name = "resnet1d"
         self.experiment_name = "ETHUSDT-1m"
         self.symbol = self.experiment_name.split('-')[0]
@@ -232,15 +233,17 @@ class TrainNN:
         self.history = None
         self.keras_model = get_resnet1d_model()
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
+        self.optimizer_sgd = tf.keras.optimizers.SGD(learning_rate=1e-5,
+                                                     momentum=0.9,
+                                                     nesterov=True
+                                                     ),
+
         self.path_filename = os.path.join( 'outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
-        self.keras_model.compile(optimizer=self.optimizer,
-                                 loss="binary_crossentropy",
-                                 metrics=["accuracy"],
-                                 )
+        self.compile()
         pass
 
     def train(self):
-        chkp = tf.keras.callbacks.ModelCheckpoint(os.path.join("outputs", f"{self.experiment_name}_{self.net_name}.h5"), monitor='val_accuracy', save_best_only=True)
+        chkp = tf.keras.callbacks.ModelCheckpoint(os.path.join("outputs", f"{self.experiment_name}_{self.net_name}_{self.power_trend}.h5"), monitor='val_accuracy', save_best_only=True)
         rlrs = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=13, min_lr=0.000001)
         callbacks = [rlrs, chkp]
         path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
@@ -257,15 +260,21 @@ class TrainNN:
                                             verbose=1,
                                             callbacks=callbacks
                                             )
+    def compile(self):
+        self.keras_model.compile(optimizer=self.optimizer,
+                                 loss="binary_crossentropy",
+                                 metrics=["accuracy"],
+                                 )
+        pass
     def get_predict(self):
         path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}.h5")
         tf.keras.models.load_model(path_filename)
-        self.y_Pred = self.keras_model.predict(self.x_Test)
+        self.y_Pred = self.keras_model.predict(self.mrk_dataset.x_Test)
         return self.y_Pred
 
     def load_best_weights(self):
-        path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}.h5")
-        tf.keras.models.load_model(path_filename)
+        path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}_{self.power_trend}.h5")
+        tf.keras.models.load_weights(path_filename)
         pass
 
     def figshow_base(self):
@@ -364,11 +373,89 @@ class TrainNN:
         plt.show()
         pass
 
+N_TRAIN = 400
+
 path_filename ="../source_ds/1m/ETHUSDT-1m.csv"
 dataset = MarkedDataSet(path_filename)
 tr = TrainNN(dataset)
 tr.train()
-# tr.figshow_base()
+# tr.compile()
+tr.load_best_weights()
 tr.show_trend_predict()
 tr.check_binary()
+
+# loaded_crypto_data = DataLoad(pairs_symbols=None,
+#                               time_intervals=['1m'],
+#                               source_directory="../source_root",
+#                               start_period='2021-09-01 00:00:00',
+#                               end_period='2021-12-05 23:59:59',
+#                               )
+
+# class MLTrainOnceStrategy(Strategy):
+#     price_delta = .004  # 0.4%
+#
+#     def init(self):
+#         # Init our model, a kNN classifier
+#         self.clf = tr
+#
+#         # Train the classifier in advance on the first N_TRAIN examples
+#         data_df = loaded_crypto_data.ohlcvbase[f"{tr.symbol}-{tr.timeframe}"].df
+#         data_df = data_df.iloc[tr.mrk_dataset.test_df_start_end[0]: tr.mrk_dataset.test_df_start_end[1], :]
+#
+#         # X, y = get_clean_Xy(df)
+#         # self.clf.fit(X, y)
+#
+#         # Plot y for inspection
+#         self.I(get_y, self.data.df, name='y_true')
+#
+#         # Prepare empty, all-NaN forecast indicator
+#         self.forecasts = self.I(lambda: np.repeat(np.nan, len(self.data)), name='forecast')
+#
+#     def next(self):
+#         # Skip the training, in-sample data
+#         if len(self.data) < N_TRAIN:
+#             return
+#
+#         # Proceed only with out-of-sample data. Prepare some variables
+#         high, low, close = self.data.High, self.data.Low, self.data.Close
+#         current_time = self.data.index[-1]
+#
+#         # Forecast the next movement
+#         X = get_X(self.data.df.iloc[-1:])
+#         forecast = self.clf.predict(X)[0]
+#
+#         # Update the plotted "forecast" indicator
+#         self.forecasts[-1] = forecast
+#
+#         # If our forecast is upwards and we don't already hold a long position
+#         # place a long order for 20% of available account equity. Vice versa for short.
+#         # Also set target take-profit and stop-loss prices to be one price_delta
+#         # away from the current closing price.
+#         upper, lower = close[-1] * (1 + np.r_[1, -1]*self.price_delta)
+#
+#         if forecast == 1 and not self.position.is_long:
+#             self.buy(size=.2, tp=upper, sl=lower)
+#         elif forecast == -1 and not self.position.is_short:
+#             self.sell(size=.2, tp=lower, sl=upper)
+#
+#         # Additionally, set aggressive stop-loss on trades that have been open
+#         # for more than two days
+#         for trade in self.trades:
+#             if current_time - trade.entry_time > pd.Timedelta('2 days'):
+#                 if trade.is_long:
+#                     trade.sl = max(trade.sl, low)
+#                 else:
+#                     trade.sl = min(trade.sl, high)
+
+
+
+
+# bt = Backtest(tr.mrk_dataset.test_df, LnS, cash=10000,commision=0.004, trade_on_close=True )
+# stats = bt.run()
+# bt.plot(plot_volume=True, relative_equity=True)
+
+
+# tr.figshow_base()
+# tr.show_trend_predict()
+# tr.check_binary()
 

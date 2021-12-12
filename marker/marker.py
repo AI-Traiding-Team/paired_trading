@@ -318,13 +318,13 @@ class Marker():
 
 
 if __name__ == "__main__":
-    loaded_crypto_data = DataLoad(pairs_symbols= None,
-                                  time_intervals=['15m'],
+    loaded_crypto_data = DataLoad(pairs_symbols=None,
+                                  time_intervals=['1m'],
                                   source_directory="../source_root",
                                   start_period='2021-09-01 00:00:00',
                                   end_period='2021-12-05 23:59:59',
                                   )
     mr = Marker(loaded_crypto_data)
-    mr.mark_all_loader_df(target_directory="../source_ds")
-    # mr.create_dataset_df("ETHUSDT", timeframe="1m", target_directory="../source_ds", weight=0.055)
+    # mr.mark_all_loader_df(target_directory="../source_ds")
+    mr.create_dataset_df("ETHUSDT", timeframe="1m", target_directory="../source_ds", weight=0.0275)
     # mr.create_dataset_df("BTCUSDT", timeframe="1m", target_directory="../source_ds", weight=0.055)
