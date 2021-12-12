@@ -26,7 +26,7 @@ def dataset_split_show(data1, data2, data3, symbol):
 
 
 class MarkedDataSet:
-    def __init__(self, path_filename):
+    def __init__(self, path_filename, all_data_df, df_priority = False):
         self.path_filename = path_filename
         self.tsg_window_length = 40
         self.tsg_sampling_rate = 1
@@ -40,7 +40,11 @@ class MarkedDataSet:
         self.val_gen = object
         self.train_size = 0.6
         self.val_size = 0.2
-        self.all_data_df = None
+        if df_priority:
+            self.all_data_df = all_data_df
+        else:
+            self.all_data_df = None
+            self.all_data_df = pd.read_csv(self.path_filename, index_col="datetimeindex")
         self.features_df = None
         self.y_df = None
         self.train_df_len = None
@@ -102,8 +106,6 @@ class MarkedDataSet:
         return self.test_gen
 
     def prepare_data(self):
-        self.all_data_df = pd.read_csv(self.path_filename, index_col="datetimeindex")
-
         print("\nAll dataframe data example (Signal markup with treshhold 0.0275):")
         print(self.all_data_df.head().to_string())
         self.features_df = self.all_data_df.iloc[:, :-1]
@@ -309,6 +311,7 @@ class TrainNN:
         trend_pred = self.keras_model.predict(self.mrk_dataset.x_Test)
         data_df['trend'] = trend_pred.flatten()
         data_df['Signal'] = np.where(data_df['trend'] > 0.5, 1, 0)
+        data_df.columns = [item.lower().capitalize() for item in data_df.columns]
         self.mrk_dataset.test_df_backtrade = data_df.drop(columns=["trend"])
 
         print("\nSignal (pred) dataframe data example for backtesting:")
@@ -316,6 +319,7 @@ class TrainNN:
         uniques, counts = np.unique(data_df["Signal"].values, return_counts=True)
         for unq, cnt in zip(uniques, counts):
             print("Total:", unq, cnt)
+
         return self.mrk_dataset.x_test_df_backrade
 
     def show_trend_predict(self):

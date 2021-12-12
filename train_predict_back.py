@@ -9,6 +9,7 @@ import backtrader as bt
 from optimizer import Objective
 
 import optuna
+from powerrun.functions import TrainNN, MarkedDataSet
 
 from maketarget import BigFatMommyMakesTargetMarkers
 
@@ -27,6 +28,13 @@ if __name__ == '__main__':
                         end_period='2021-03-31 23:59:59'
                         )
 
+    path_filename = "../source_ds/1m/ETHUSDT-1m.csv"
+
+
+
+
+
+
     print(database.pairs_symbols)
 
     window_size =41
@@ -38,8 +46,14 @@ if __name__ == '__main__':
         print(item)
         # Загружаем исходные данные OHLCV
         df = database.get_pair(item, intervals[0])
+        dataset = MarkedDataSet(path_filename, df, df_priority=True)
         # Добавляем разметку Signal (значения [1, -1])
-        df = BigFatMommyMakesTargetMarkers(window_size=window_size).mark_y(df)
+        tr = TrainNN(dataset)
+        tr.epochs = 20
+        tr.tsg_window_length = 40
+        tr.train()
+        df = tr.backtest_test_dataset()
+        # df = BigFatMommyMakesTargetMarkers(window_size=window_size).mark_y(df)
         # Запускаем бэтестинг, на вход подаем DataFrame [['Open','Close','High','Low','Volume','Signal]]
         bt = Back(df, strategy, cash=100_000, commission=.002, trade_on_close=False)
         # Получаем статистику бэктестинга
@@ -49,3 +63,12 @@ if __name__ == '__main__':
         # Выводим графиг бэктестинга (копия сохраняется в корень с именем "Название стратегии.html"
         bt.plot(plot_volume=True, relative_equity=True)
     print('===' * 30, '\nBacktesting done by: ', time.time() - start, '\n====' * 30, '\n')
+
+path_filename ="../source_ds/1m/ETHUSDT-1m.csv"
+dataset = MarkedDataSet(path_filename)
+tr = TrainNN(dataset)
+tr.epochs = 10
+tr.tsg_batch_size = 128
+tr.tsg_window_length = 40
+tr.train()
+test_df = tr.backtest_test_dataset()
