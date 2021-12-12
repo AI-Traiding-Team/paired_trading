@@ -11,6 +11,9 @@
 .env
 *.env
 
+# Source data for dataset
+source_root/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -84,10 +87,6 @@ instance/
 # Sphinx documentation
 docs/_build/
 
-# PyBuilder
-target/
-
-
 
 # IPython
 profile_default/
@@ -141,3 +140,4 @@ dmypy.json
 
 
 
+/oldangrybirdtools/
