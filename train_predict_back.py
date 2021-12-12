@@ -38,19 +38,14 @@ if __name__ == '__main__':
     start = time.time()
     # for item in database.pairs_symbols:
     print('===' * 30)
-    # print(item)
     # Загружаем исходные данные OHLCV
-    # df = database.get_pair(item, intervals[0])
     dataset = MarkedDataSet(path_filename, df, df_priority=False)
     # Добавляем разметку Signal (значения [1, -1])
     tr = TrainNN(dataset)
     tr.tsg_window_length = 40
-    # tr.keras_model = get_angry_bird_model((tr.tsg_window_length))
     tr.epochs = 20
-
     tr.train()
     df = tr.backtest_test_dataset()
-    # df = BigFatMommyMakesTargetMarkers(window_size=window_size).mark_y(df)
     # Запускаем бэтестинг, на вход подаем DataFrame [['Open','Close','High','Low','Volume','Signal]]
     bt = Back(df, strategy, cash=100_000, commission=.002, trade_on_close=False)
     # Получаем статистику бэктестинга

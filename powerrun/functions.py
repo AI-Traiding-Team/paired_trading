@@ -45,7 +45,6 @@ class MarkedDataSet:
         else:
             self.all_data_df = None
             self.all_data_df = pd.read_csv(self.path_filename,
-
                                            index_col="datetimeindex")
             self.all_data_df.index = pd.to_datetime(self.all_data_df.index)
         self.features_df = None
@@ -247,7 +246,7 @@ class TrainNN:
         chkp = tf.keras.callbacks.ModelCheckpoint(os.path.join("outputs", f"{self.experiment_name}_{self.net_name}_{self.power_trend}.h5"), monitor='val_accuracy', save_best_only=True)
         rlrs = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=13, min_lr=0.000001)
         callbacks = [rlrs, chkp]
-        path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
+        # path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
         # tf.keras.utils.plot_model(self.keras_model,
         #                           to_file=path_filename,
         #                           show_shapes=True,
@@ -315,9 +314,6 @@ class TrainNN:
         data_df['trend'] = trend_pred.flatten()
         data_df.loc[data_df["trend"] <= 0.5, "trend"] = 0.0
         data_df.loc[data_df["trend"] > 0.5, "trend"] = 1.0
-        # data_df["Signal"] = (data_df["trend"] > 0.5).astype(float)
-        # # data_df['Signal'] = np.where(data_df['trend'] > 0.5, 1.0, 0.0)
-        # data_df = (data_df["trend"] > 0.5).astype(int)
         data_df["Signal"] = data_df['trend']
         self.mrk_dataset.test_df_backtrade = data_df
         self.mrk_dataset.test_df_backtrade.drop(columns=[
