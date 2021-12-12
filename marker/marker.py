@@ -286,8 +286,8 @@ class Marker():
         self.symbol = symbol
         self.timeframe = timeframe
         dataset_df = self.collect_features()
-        dataset_df['signal'] = self.create_power_trend(weight=weight)
-        uniques, counts = np.unique(dataset_df['signal'].values, return_counts=True)
+        dataset_df['Signal'] = self.create_power_trend(weight=weight)
+        uniques, counts = np.unique(dataset_df['Signal'].values, return_counts=True)
         msg_2 = ""
         for unq, cnt in zip(uniques, counts):
             msg_2 += f"Unique: {unq} {cnt}\n"

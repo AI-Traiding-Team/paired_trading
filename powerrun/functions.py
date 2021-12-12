@@ -102,20 +102,20 @@ class MarkedDataSet:
     def prepare_data(self):
         self.all_data_df = pd.read_csv(self.path_filename, index_col="datetimeindex")
 
-        print("All dataframe data example:")
+        print("\nAll dataframe data example (Signal markup with treshhold 0.0275):")
         print(self.all_data_df.head().to_string())
         self.features_df = self.all_data_df.iloc[:, :-1]
-        print("X (features) dataframe data example:")
+        print("\nX (features) dataframe data example:")
         print(self.features_df.head().to_string(), f"\n")
         self.y_df = self.all_data_df.iloc[:, -1:]
-        print("Signal (true) dataframe data example:")
+        print("\nSignal (true) dataframe data example:")
         print(self.y_df.head().to_string(), f"\n")
         uniques, counts = np.unique(self.y_df.values, return_counts=True)
         for unq, cnt in zip(uniques, counts):
             print("Total:", unq, cnt)
 
         self.calculate_split_df()
-        msg = f"Split dataframe:" \
+        msg = f"\nSplit dataframe:" \
               f"Train start-end and length: {self.train_df_start_end[0]}-{self.train_df_start_end[1]} {self.train_df_start_end[0] - self.train_df_start_end[1]}\n" \
               f"Validation start-end and length: {self.val_df_start_end[0]}-{self.val_df_start_end[1]} {self.val_df_start_end[0] - self.val_df_start_end[1]}\n" \
               f"Test start-end and length: {self.test_df_start_end[0]}-{self.test_df_start_end[1]} {self.test_df_start_end[0] - self.test_df_start_end[1]}"
@@ -134,9 +134,9 @@ class MarkedDataSet:
         dataset_split_show(temp_1, temp_2, temp_3, f"{symbol}-{timeframe}")
         self.features_scaler = RobustScaler().fit(self.features_df.values)
         x_arr = self.features_scaler.transform(self.features_df.values)
-        print("Create arrays with X (features)", x_arr.shape)
+        print("\nCreate arrays with X (features)", x_arr.shape)
         y_arr = self.y_df.values.reshape(-1, 1)
-        print("Create arrays with Signal (true)", y_arr.shape)
+        print("\nCreate arrays with Signal (True)", y_arr.shape)
         self.prepare_datagens(x_arr, y_arr)
         pass
 
@@ -300,7 +300,7 @@ class TrainNN:
 
     def show_trend_predict(self):
         weight = self.power_trend
-        print(f"Считаем тренд с power = {weight}")
+        print(f"\nВизуализируем результат")
         data_df = self.mrk_dataset.features_df[
                   self.mrk_dataset.test_df_start_end[0]: self.mrk_dataset.test_df_start_end[
                                                              1] - self.mrk_dataset.tsg_window_length]
@@ -314,10 +314,10 @@ class TrainNN:
         min_close = data_df["close"].min()
         mean_close = data_df["close"].mean()
         trend_pred_df.loc[(trend_pred_df["trend"] > 0.5), "trend"] = max_close
-        y_df.loc[(y_df["signal"] == 1), "signal"] = max_close
+        y_df.loc[(y_df["Signal"] == 1), "Signal"] = max_close
         trend_pred_df.loc[(trend_pred_df["trend"] <= 0.5), "trend"] = min_close
-        y_df.loc[(y_df["signal"] == 0), "signal"] = min_close
-        data_df[f"trend_{weight}"] = y_df["signal"]
+        y_df.loc[(y_df["Signal"] == 0), "Signal"] = min_close
+        data_df[f"trend_{weight}"] = y_df["Signal"]
 
         col_list = data_df.columns.to_list()
         try:
