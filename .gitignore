@@ -87,8 +87,6 @@ instance/
 # Sphinx documentation
 docs/_build/
 
-# PyBuilder
-maketarget/
 
 
 
@@ -144,3 +142,4 @@ dmypy.json
 
 
 
+/oldangrybirdtools/
