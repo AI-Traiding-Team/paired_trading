@@ -7,8 +7,6 @@ class SimpleSignalStrategy(SignalStrategy):
         super().init()
         self.set_signal(self.data['Signal'] == 1, self.data['Signal'] == -1)
 
-    def next(self):
-        super().next()
 
 ######################################################################
 class LongStrategy(Strategy):
@@ -45,16 +43,16 @@ class LongShortStrategy(Strategy):
                 self.signal == -1):
             self.position.close()
 
-        if (self.position.is_short and
+        elif (self.position.is_short and
                 self.signal == 1):
             self.position.close()
 
-        if (self.position.size == 0 and
+        elif (self.position.size == 0 and
                 self.signal == 1):
             self.buy()
             # self.buy(sl=0.8 * price)
             self.position.entry_price = price
 
-        if (self.position.size == 0 and
+        elif (self.position.size == 0 and
                 self.signal == -1):
             self.sell()

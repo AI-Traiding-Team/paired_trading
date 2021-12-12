@@ -1,16 +1,12 @@
 import time
-
 from analyze import DataLoad
 import os
 from backtester import Back
 from backtester.strategies import *
 from backtester.strategies.old_fashion import *
-import backtrader as bt
-from optimizer import Objective
-
-import optuna
-
+from optimizer import Objective, BadNegroEvelOptimizer
 from maketarget import BigFatMommyMakesTargetMarkers
+import json
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -29,17 +25,20 @@ if __name__ == '__main__':
 
     print(database.pairs_symbols)
 
-    window_size = {'ETHEUR': 55, 'ETHUSDT': 73}
-    strategy = {'ETHEUR': LongStrategy, 'ETHUSDT': LongStrategy}
 
-    start = time.time()
+
+    params = {'optimize_subj': 'Win Rate [%]', #Best Trade [%]', #'Return [%]',
+              'n_trials': 200,
+              'window_size': {'low': 5, 'high': 200, 'step': 2},
+              'strategy': [LongStrategy, LongShortStrategy],
+              'target_maker': BigFatMommyMakesTargetMarkers,
+              'cash': 100_000}
+
+    best = dict()
     for item in database.pairs_symbols:
-        print('===' * 30)
         print(item)
         df = database.get_pair(item, intervals[0])
-        df = BigFatMommyMakesTargetMarkers(window_size=window_size[item]).mark_y(df)
-        bt = Back(df, strategy[item], cash=100_000, commission=.002, trade_on_close=True)
-        stats = bt.run()
-        print(stats)
-        bt.plot(plot_volume=True, relative_equity=True)
-    print('===' * 30, '\nBacktesting done by: ', time.time() - start, '\n====' * 30, '\n')
+        best.update(**BadNegroEvelOptimizer(data=df, direction='maximize', study_name=item, **params).run())
+    print(best)
+    print(best, file=open('best_results_optimization.json', 'wt'))
+
