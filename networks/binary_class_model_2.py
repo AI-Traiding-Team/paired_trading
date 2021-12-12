@@ -29,7 +29,7 @@ class TrainNN:
         dts_close1_close2_trend = dsc.create_dataset()
 
         binary_profile = NNProfile("binary_crossentropy")
-        binary_profile.learning_rate = 1e-3
+        binary_profile.learning_rate = 1e-4
         binary_profile.experiment_name = f"{binary_profile.experiment_name}_close1_close2_trend"
         binary_profile.epochs = 350
         test_nn = MainNN(binary_profile)
@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     loaded_crypto_data = DataLoad(pairs_symbols=None,
                                   time_intervals=['1m'],
-                                  source_directory="/home/cubecloud/Python/projects/paired_trading/source_root",
+                                  source_directory="../source_root",
                                   start_period='2021-09-01 00:00:00',
                                   end_period='2021-12-05 23:59:59',
                                   )

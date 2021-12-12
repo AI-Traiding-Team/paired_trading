@@ -4,7 +4,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 import seaborn as sns
-from tqdm import tqdm, trange
+from tqdm import tqdm
 
 np.random.seed(42)
 import pandas as pd
@@ -16,7 +16,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 from functions_for_po import display_calculated_ef_with_random
-from constants import destination_path
+from portfolio_optimization.constants import destination_path
 
 
 

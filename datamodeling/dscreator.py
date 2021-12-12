@@ -23,7 +23,7 @@ from analyze.dataload import DataLoad
 from datamodeling.datafeatures import DataFeatures, DSProfile
 
 
-__version__ = 0.0009
+__version__ = 0.0011
 
 
 def get_local_timezone_name():
@@ -115,6 +115,7 @@ class DataSet:
         self.dataset_profile = DSProfile()
         self.features_df = None
         self.y_df = None
+
         self.x_Train = None
         self.y_Train = None
         self.x_Val = None
@@ -127,6 +128,9 @@ class DataSet:
         self.val_gen = None
         self.test_gen = None
         self.input_shape = None
+        self.ohlcv_train_df = None
+        self.ohlcv_val_df = None
+        self.ohlcv_test_df = None
     pass
 
     def get_train(self):
@@ -161,26 +165,49 @@ class DSCreator:
         Returns:
             DSCreator (class):  object
         """
+        self.df_test_len = None
+        self.df_val_len = None
+        self.df_train_len = None
         self.features = DataFeatures(loader)
         self.dataset_profile = dataset_profile
         self.dataset = DataSet()
 
     def split_data_df(self):
         df_rows = self.dataset.features_df.shape[0]
-        df_train_len = int(df_rows * self.dataset_profile.train_size)
-        df_val_len = df_rows - (df_train_len + self.dataset_profile.gap_timeframes)
-        self.dataset.train_df = self.dataset.features_df.iloc[:df_train_len, :]
+        self.df_train_len = int(df_rows * self.dataset_profile.train_size)
+        self.df_val_len = df_rows - (self.df_train_len + self.dataset_profile.gap_timeframes)
+        # ohlcv_symbol1 =
+        self.dataset.train_df = self.dataset.features_df.iloc[:self.df_train_len, :]
         if self.dataset_profile.train_size + self.dataset_profile.val_size == 1.0:
-            self.dataset.val_df = self.dataset.features_df.iloc[df_train_len + self.dataset_profile.gap_timeframes:, :]
-            return df_train_len, df_val_len, None
+            self.dataset.val_df = self.dataset.features_df.iloc[self.df_train_len + self.dataset_profile.gap_timeframes:, :]
+            return self.df_train_len, self.df_val_len, None
         else:
-            df_val_len = int(df_rows * self.dataset_profile.val_size)
-            df_test_len = df_rows - (df_train_len + self.dataset_profile.gap_timeframes) - (df_val_len + self.dataset_profile.gap_timeframes)
+            self.df_val_len = int(df_rows * self.dataset_profile.val_size)
+            self.df_test_len = df_rows - (self.df_train_len + self.dataset_profile.gap_timeframes) - (self.df_val_len + self.dataset_profile.gap_timeframes)
             self.dataset.val_df = self.dataset.features_df.iloc[
-                                  df_train_len + self.dataset_profile.gap_timeframes: df_val_len + df_train_len + self.dataset_profile.gap_timeframes,
+                                  self.df_train_len + self.dataset_profile.gap_timeframes: self.df_val_len + self.df_train_len + self.dataset_profile.gap_timeframes,
                                   :]
-            self.dataset.test_df = self.dataset.features_df.iloc[df_rows - df_test_len:, :]
-            return df_train_len, df_val_len, df_test_len
+            self.dataset.test_df = self.dataset.features_df.iloc[df_rows - self.df_test_len:, :]
+            # self.split_ohlcv_df()
+            return self.df_train_len, self.df_val_len, self.df_test_len
+
+    # def split_ohlcv_df(self):
+    #     pair_symbol = self.dataset_profile.use_symbols_pairs[0]
+    #     timeframe = self.dataset_profile.timeframe
+    #     ohlcv_df = self.features.ohlcv_base[f"{pair_symbol}-{timeframe}"].df.copy()
+    #     ohlcv_df = ohlcv_df.drop(index=self.features.drop_idxs)
+    #     self.dataset.ohlcv_df = ohlcv_df
+    #     df_rows = ohlcv_df.shape[0]
+    #     self.dataset.ohlcv_train_df = ohlcv_df.iloc[:self.train_df_len, :]
+    #     self.df_val_len = df_rows - (self.train_df_len + self.dataset_profile.gap_timeframes)
+    #     if self.df_test_len is None:
+    #         self.dataset.ohlcv_val_df = self.dataset.features_df.iloc[self.train_df_len + self.dataset_profile.gap_timeframes:, :]
+    #     else:
+    #         self.dataset.ohlcv_val_df = ohlcv_df.iloc[
+    #                                   self.train_df_len + self.dataset_profile.gap_timeframes: self.df_val_len + self.train_df_len + self.dataset_profile.gap_timeframes,
+    #                                   :]
+    #         self.dataset.ohlcv_test_df = ohlcv_df.iloc[df_rows - self.df_test_len:, :]
+    #     pass
 
     def get_train_generator(self, x_Train_data, y_Train_data):
         self.dataset.train_gen = TSDataGenerator(data=x_Train_data,
@@ -230,8 +257,22 @@ class DSCreator:
         self.prepare_datagens(x_arr, y_arr)
         pass
 
-    def create_close1_close2_trend(self):
+    def create_power_trend(self):
 
+        if self.dataset_profile.scaler == "robust":
+            self.dataset.features_scaler = RobustScaler().fit(self.dataset.features_df.values)
+            self.dataset.targets_scaler = None
+        else:
+            msg = "Error: Unknown scaler preparation type"
+            sys.exit(msg)
+
+        x_arr = self.dataset.features_scaler.transform(self.dataset.features_df.values)
+        """ check """
+        y_arr = self.dataset.y_df.values
+        self.prepare_datagens(x_arr, y_arr)
+        pass
+
+    def create_close1_close2_trend(self):
         if self.dataset_profile.scaler == "robust":
             self.dataset.features_scaler = RobustScaler().fit(self.dataset.features_df.values)
             self.dataset.targets_scaler = None
@@ -273,18 +314,29 @@ class DSCreator:
         pass
 
     def create_dataset(self) -> DataSet:
-        self.dataset.dataset_profile = DSProfile()
+        # self.dataset.dataset_profile = DSProfile()
+        print("Cоздаем X (Feature) часть датасета...")
         self.dataset.features_df = self.features.collect_features(self.dataset_profile)
+        print(self.dataset.features_df.tail().to_string())
         self.dataset.name = f'{self.dataset_profile.use_symbols_pairs[0]}-{self.dataset_profile.use_symbols_pairs[1]}-{self.dataset_profile.timeframe}'
+        print("Создаем Y (True) часть датасета...")
         if self.dataset_profile.Y_data == "close1-close2":
             self.dataset.y_df = self.features.create_y_close1_close2_sub()
         elif self.dataset_profile.Y_data == "close1-close2_trend":
             self.dataset.y_df = self.features.create_y_close1_close2_sub_trend()
+            print(self.dataset.y_df.tail().to_string())
             self.create_close1_close2_trend()
             return self.dataset
         elif self.dataset_profile.Y_data == "close1-close2_power":
             self.dataset.y_df = self.features.create_y_close1_close2_sub_power()
+            print(self.dataset.y_df.tail().to_string())
             self.create_close1_close2_power()
+            return self.dataset
+        elif self.dataset_profile.Y_data == "power_trend":
+            weight = self.dataset.dataset_profile.power_trend
+            self.dataset.y_df = self.features.create_power_trend(weight)
+            print(self.dataset.y_df.tail().to_string())
+            self.create_power_trend()
             return self.dataset
         else:
             msg = "Error: Unknown dataset preparation type"

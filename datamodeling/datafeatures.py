@@ -3,19 +3,21 @@ import sys
 import numpy as np
 import pandas as pd
 from typing import Tuple
-from analyze.dataload import DataLoad, TradeConstants
+from analyze.dataload import DataLoad
 from dataclasses import dataclass
 # sys.path.insert(1, os.path.join(os.getcwd(), 'analyze'))
 
-__version__ = 0.0008
+__version__ = 0.0010
 
 
 @dataclass(init=True)
 class DSProfile:
     features_list: Tuple = ()
-    use_symbols_pairs: Tuple[str, str] = ("BTCUSDT", "ETHUSDT")
+    use_symbols_pairs = ("BTCUSDT", "ETHUSDT")
     timeframe: str = '15m'
     Y_data: str = "close1-close2"
+    power_trend = 0.15
+
     scaler: str = "robust"
     """  
     If train_size + val_size < 1.0 
@@ -35,6 +37,7 @@ class DSProfile:
 
 class DataFeatures:
     def __init__(self, loader: DataLoad):
+
         self.drop_idxs: list = []
         self.loader = loader
         self.ohlcv_base = self.loader.ohlcvbase
@@ -53,7 +56,9 @@ class DataFeatures:
         self.clear_na_flag = False
         self.source_df_1 = None
         self.source_df_2 = None
+        self.source_df_3 = None
         self.features_df = None
+        self.ds_profile = None
         self.y_df = pd.DataFrame()
 
     @staticmethod
@@ -131,6 +136,180 @@ class DataFeatures:
         return date_df
 
     @staticmethod
+    def calculate_trend(input_df: pd.DataFrame,
+                        W: float = 0.15
+                        ) -> pd.DataFrame:
+        """
+        Args:
+            input_df (pd.DataFrame):    input DataFrame with index and OHCLV data
+            W (float):                  weight percentage for calc trend default 0.15
+        Returns:
+           trend (pd.DataFrame):        output DataFrame
+        """
+
+        # volatility = calc_volatility(df)
+        # max_vol = volatility.max()
+        # min_vol = volatility.min()
+        # std_vol = volatility.std()
+        # vol_scaling = max_vol*W/min_vol
+        # print(f"{min_vol}/{max_vol}= {min_vol/max_vol}, {std_vol} scaling={vol_scaling}")
+
+        # TODO: create autoweight calculation based on current volatility (check hypothesis)
+        def weighted_W(idx, W: float = 0.15):
+            """
+            Args:
+                idx (int):  index of the row from pd.Dataframe
+                W (float): increase or decrease weight (percentage) of the 'close' bar
+
+            Returns:
+            """
+            weighted = W
+            # if volatility[idx]< 0.9:
+            #     weighted = 0.13
+            # else:
+            #     weighted = W - (np.log(volatility[idx])*0.8)
+            #     # print(weighted)
+            return weighted
+
+        """
+        Setup. Getting first data and initialize variables
+        """
+        x_bar_0 = [input_df.index[0],  # [0] - datetime
+                   input_df["open"][0],  # [1] - open
+                   input_df["high"][0],  # [2] - high
+                   input_df["low"][0],  # [3] - low
+                   input_df["close"][0],  # [4] - CLOSE
+                   input_df["volume"][0],
+                   # input_df["trades"][0]
+                   ]
+        FP_first_price = x_bar_0[4]
+        xH_highest_price = x_bar_0[2]
+        HT_highest_price_timemark = 0
+        xL_lowest_price = x_bar_0[3]
+        LT_lowest_price_timemark = 0
+        Cid = 0
+        FPN_first_price_idx = 0
+        Cid_array = np.zeros(input_df.shape[0])
+        """
+        Setup. Getting first data and initialize variables
+        """
+
+        for idx in range(input_df.shape[0] - 1):
+            x_bar = [input_df.index[idx],
+                     input_df["open"][idx],
+                     input_df["high"][idx],
+                     input_df["low"][idx],
+                     input_df["close"][idx],
+                     input_df["volume"][idx],
+                     # input_df["trades"][idx]
+                     ]
+            # print(x_bar)
+            # print(x_bar[4])
+            W = weighted_W(idx, W)
+            if x_bar[2] > (FP_first_price + x_bar_0[4] * W):
+                xH_highest_price = x_bar[2]
+                HT_highest_price_timemark = idx
+                FPN_first_price_idx = idx
+                Cid = 1
+                Cid_array[idx] = 1
+                Cid_array[0] = 1
+                break
+            if x_bar[3] < (FP_first_price - x_bar_0[4] * W):
+                xL_lowest_price = x_bar[3]
+                LT_lowest_price_timemark = idx
+                FPN_first_price_idx = idx
+                Cid = -1
+                Cid_array[idx] = -1
+                Cid_array[0] = -1
+                break
+
+        for ix in range(FPN_first_price_idx + 1, input_df.shape[0] - 2):
+            x_bar = [input_df.index[ix],
+                     input_df["open"][ix],
+                     input_df["high"][ix],
+                     input_df["low"][ix],
+                     input_df["close"][ix],
+                     input_df["volume"][ix],
+                     # input_df["trades"][ix]
+                     ]
+            W = weighted_W(ix, W)
+            if Cid > 0:
+                if x_bar[2] > xH_highest_price:
+                    xH_highest_price = x_bar[2]
+                    HT_highest_price_timemark = ix
+                if x_bar[2] < (
+                        xH_highest_price - xH_highest_price * W) and LT_lowest_price_timemark <= HT_highest_price_timemark:
+                    for j in range(1, input_df.shape[0] - 1):
+                        if LT_lowest_price_timemark < j <= HT_highest_price_timemark:
+                            Cid_array[j] = 1
+                    xL_lowest_price = x_bar[2]
+                    LT_lowest_price_timemark = ix
+                    Cid = -1
+
+            if Cid < 0:
+                if x_bar[3] < xL_lowest_price:
+                    xL_lowest_price = x_bar[3]
+                    LT_lowest_price_timemark = ix
+                if x_bar[3] > (
+                        xL_lowest_price + xL_lowest_price * W) and HT_highest_price_timemark <= LT_lowest_price_timemark:
+                    for j in range(1, input_df.shape[0] - 1):
+                        if HT_highest_price_timemark < j <= LT_lowest_price_timemark:
+                            Cid_array[j] = -1
+                    xH_highest_price = x_bar[2]
+                    HT_highest_price_timemark = ix
+                    Cid = 1
+
+        # TODO: rewrite this block in intelligent way !!! Now is working but code is ugly
+        """ Checking last bar in input_df """
+        ix = input_df.shape[0] - 1
+        x_bar = [input_df.index[ix],
+                 input_df["open"][ix],
+                 input_df["high"][ix],
+                 input_df["low"][ix],
+                 input_df["close"][ix],
+                 input_df["volume"][ix],
+                 # input_df["trades"][ix]
+                 ]
+        if Cid > 0:
+            if x_bar[2] > xH_highest_price:
+                xH_highest_price = x_bar[2]
+                HT_highest_price_timemark = ix
+            if x_bar[2] <= xH_highest_price:
+                for j in range(1, input_df.shape[0]):
+                    if LT_lowest_price_timemark < j <= HT_highest_price_timemark:
+                        Cid_array[j] = 1
+                xL_lowest_price = x_bar[3]
+                LT_lowest_price_timemark = ix
+                Cid = -1
+        if Cid < 0:
+            if x_bar[3] < xL_lowest_price:
+                xL_lowest_price = x_bar[3]
+                LT_lowest_price_timemark = ix
+                # print(True)
+            if x_bar[3] >= xL_lowest_price:
+                for j in range(1, input_df.shape[0]):
+                    if HT_highest_price_timemark < j <= LT_lowest_price_timemark:
+                        Cid_array[j] = -1
+                xH_highest_price = x_bar[2]
+                HT_highest_price_timemark = ix
+                Cid = 1
+        if Cid > 0:
+            if x_bar[2] > xH_highest_price:
+                xH_highest_price = x_bar[2]
+                HT_highest_price_timemark = ix
+            if x_bar[2] <= xH_highest_price:
+                for j in range(1, input_df.shape[0]):
+                    if LT_lowest_price_timemark < j <= HT_highest_price_timemark:
+                        Cid_array[j] = 1
+                xL_lowest_price = x_bar[3]
+                LT_lowest_price_timemark = ix
+                Cid = -1
+        trend = pd.DataFrame(data=Cid_array,
+                             index=input_df.index,
+                             columns=["trend"])
+        return trend
+
+    @staticmethod
     def get_feature_normalized_diff(source_df_1,
                                     source_df_2,
                                     col_use="close"
@@ -144,9 +323,10 @@ class DataFeatures:
         return diff_df
 
     def collect_features(self, profile: DSProfile):
-        pair_symbol_1 = profile.use_symbols_pairs[0]
-        pair_symbol_2 = profile.use_symbols_pairs[1]
-        timeframe = profile.timeframe
+        self.ds_profile = profile
+        pair_symbol_1 = self.ds_profile.use_symbols_pairs[0]
+        pair_symbol_2 = self.ds_profile.use_symbols_pairs[1]
+        timeframe = self.ds_profile.timeframe
         features_df = pd.DataFrame()
         self.source_df_1 = self.ohlcv_base[f"{pair_symbol_1}-{timeframe}"].df.copy()
         self.source_df_2 = self.ohlcv_base[f"{pair_symbol_2}-{timeframe}"].df.copy()
@@ -192,51 +372,154 @@ class DataFeatures:
 
     # 0 if Close1 - Close2 < 0 и 1 if Close1 - Close2 >= 0 - в одном столбце
     def create_y_close1_close2_sub_trend(self):
-        self.y_df["close"] = self.source_df_1["close"]
-        normalized_df_1 = (self.source_df_1["close"] - self.source_df_1["close"].min()) / (
-                self.source_df_1["close"].max() - self.source_df_1["close"].min())
-        normalized_df_2 = (self.source_df_2["close"] - self.source_df_2["close"].min()) / (
-                self.source_df_2["close"].max() - self.source_df_2["close"].min())
         temp_df = pd.DataFrame()
-        temp_df["close"] = pd.DataFrame(normalized_df_1 - normalized_df_2)
-        temp_df.loc[temp_df["close"] < 0, "close"] = 0
-        temp_df.loc[temp_df["close"] > 0, "close"] = 1
-        self.y_df = temp_df.drop(index=self.drop_idxs)
-        return self.y_df.copy()
+        temp_df["close1"] = self.source_df_1["close"]
+        temp_df.insert(1, "close2", self.source_df_2["close"].values)
+        temp_df["close1/close2"] = temp_df["close1"]/temp_df["close2"]
+        temp_df["close1/close2_pct"] = temp_df["close1/close2"].pct_change(1)
+        temp_df.loc[temp_df["close1/close2_pct"] <= 0, "close1/close2_pct"] = 0
+        temp_df.loc[temp_df["close1/close2_pct"] > 0, "close1/close2_pct"] = 1
+        temp_df = temp_df["close1/close2_pct"]
+        temp_df = temp_df.drop(index=self.drop_idxs)
+        ohe = pd.get_dummies(temp_df, dtype=float)
+        self.y_df = pd.DataFrame(ohe)
+        # unique = np.unique(self.y_df, return_counts=True )
+        return self.y_df
 
-    # Предсказание силы движения по модулю (п1 переводим в ohe [1, 2, 3, 4, 5]) - классификация.
-    # Идея в том, чтобы разделить предсказание направления [0, 1] и силу этого движения
+    def create_power_trend(self, weight):
+        pair_symbol = self.ds_profile.use_symbols_pairs[2]
+        timeframe = self.ds_profile.timeframe
+        self.source_df_3 = self.ohlcv_base[f"{pair_symbol}-{timeframe}"].df.copy()
+        ohlcv_df = self.source_df_3
+        trend_df = pd.DataFrame()
+        trend_df["trend"] = self.calculate_trend(ohlcv_df, weight)
+        trend_df.loc[trend_df["trend"] == -1, "trend"] = 0
+        trend_df = trend_df.drop(index=self.drop_idxs)
+        ohe_df = pd.get_dummies(trend_df["trend"], dtype=float)
+        self.y_df = ohe_df
+        return self.y_df
+
+    # # Предсказание силы движения по модулю (п1 переводим в ohe [1, 2, 3, 4, 5]) - классификация.
+    # # Идея в том, чтобы разделить предсказание направления [0, 1] и силу этого движения
     def create_y_close1_close2_sub_power(self):
-        self.y_df["close"] = self.source_df_1["close"]
-        normalized_df_1 = (self.source_df_1["close"] - self.source_df_1["close"].min()) / (
-                self.source_df_1["close"].max() - self.source_df_1["close"].min())
-        normalized_df_2 = (self.source_df_2["close"] - self.source_df_2["close"].min()) / (
-                self.source_df_2["close"].max() - self.source_df_2["close"].min())
-        sub_df = pd.DataFrame()
-        sub_df["close"] = pd.DataFrame(normalized_df_1 - normalized_df_2).abs()
-        # sub_df = self.create_y_close1_close2_sub()
-        sub_df_min = sub_df.abs().min().min()
-        sub_df_max = sub_df.abs().max().max()
-        sub_df_step = (sub_df_max-sub_df_min)/5
-        power_list = list(np.arange(sub_df_min, sub_df_max, sub_df_step))
-        power_list.insert(5, sub_df_max)
-        for idx in range(5):
-            sub_df.loc[(sub_df["close"] >= power_list[idx]) & (sub_df["close"] < power_list[idx+1]+0.0001), "close"] = idx
-        ohe = pd.get_dummies(sub_df["close"], dtype=float)
-        self.y_df = ohe.drop(index=self.drop_idxs)
+        temp_df = pd.DataFrame()
+        temp_df["close1"] = self.source_df_1["close"]
+        temp_df.insert(1, "close2", self.source_df_2["close"].values*10)
+        temp_df["close1-close2"] = temp_df["close1"]-temp_df["close2"]
+        temp_df["close1-close2_pct_change"] = temp_df["close1-close2"].pct_change(1).abs()
+        # normalized_df_1 = (self.source_df_1["close"] - self.source_df_1["close"].min()) / (
+        #         self.source_df_1["close"].max() - self.source_df_1["close"].min())
+        # normalized_df_2 = (self.source_df_2["close"] - self.source_df_2["close"].min()) / (
+        #         self.source_df_2["close"].max() - self.source_df_2["close"].min())
+        # sub_df = pd.DataFrame()
+        # sub_df["close"] = pd.DataFrame(normalized_df_1 - normalized_df_2).abs()
+        # sub_df["close"] = sub_df["close"].pct_change(1).abs()
+
+        # temp_df = pd.DataFrame()
+        temp_df["close1"] = self.source_df_1["close"]
+        temp_df.insert(1, "close2", self.source_df_2["close"].values)
+        temp_df["close1/close2"] = temp_df["close1"]/temp_df["close2"]
+        temp_df["close1/close2_pct_change"] = (temp_df["close1"]/temp_df["close2"]).pct_change(1)
+        temp_df["close1/close2_pct_change"] = temp_df["close1/close2_pct_change"].abs()
+        temp_df = temp_df.drop(index=self.drop_idxs)
+
+        # y_list = list(temp_df["close1/close2_pct"].values)
+        # classes_idx_dict = {0: [],
+        #                     1: [],
+        #                     2: [],
+        #                     3: [],
+        #                     4: [],
+        #                     }
+        # classes_len_dict = {0: 0,
+        #                     1: 0,
+        #                     2: 0,
+        #                     3: 0,
+        #                     4: 0,
+        #                     }
+        # y_len = len(y_list)
+        # for class_num in range(4):
+        #     classes_len_dict[class_num] = y_len/5
+        # classes_len_dict[5] = y_len - (y_len/5*4)
+        # masking = np.zeros(y_len, dtype=np.bool)
+        # y_masked = np.ma.MaskedArray(y_list, mask=masking)
+        # for class_num in range(5):
+        #     print(class_num)
+        #     for _ in range(classes_len_dict[class_num]):
+        #         idx = y_masked.argmin()
+        #         classes_idx_dict[class_num].append(idx)
+        #         y_masked.mask[idx] = True
+        # y_classes = np.zeros(y_len, dtype=np.int)
+
+        # for class_num in range(5):
+        #     for idx in classes_dict[class_num]:
+        #         y_classes[idx] = class_num
+        # print(y_classes)
+
+        # quantile_transformer = QuantileTransformer(output_distribution='normal',
+        #                                            random_state=42)
+        # y_arr = temp_df["close1/close2_pct"].values
+        # y_arr = y_arr.reshape(-1, 1)
+        #
+        #
+        # normalized_df = (temp_df["close1/close2_pct"] - temp_df["close1/close2_pct"].min()) / (
+        #         temp_df["close1/close2_pct"].max() - temp_df["close1/close2_pct"].min())
+        # y_arr = normalized_df.values
+        # y_arr = y_arr.reshape(-1, 1)
+        # y_trans = quantile_transformer.fit_transform(y_arr)
+        # temp_df_min = y_trans.min().min()
+        # temp_df_max = y_trans.max().max()
+        # # temp_df_min = normalized_df.min().min()
+        # # temp_df_max = normalized_df.max().max()
+        # all_range = temp_df_max-temp_df_min
+        # temp_df_step = all_range/5
+        # power_list = list(np.arange(temp_df_min, temp_df_max, temp_df_step))
+        # power_list.insert(5, temp_df_max)
+        # # temp_df = normalized_df
+        # y_trans = np.squeeze(y_trans)
+        # y_df = pd.DataFrame(data=y_trans, columns=["power"])
+        # y_df.index = temp_df.index
+        # temp_df = y_df
+        # for idx in range(1, 6):
+        #     temp_df.loc[(temp_df["power"] > power_list[idx-1]) & (temp_df["power"] <= power_list[idx])] = idx-1
+        # # temp_df = temp_df.drop(index=self.drop_idxs)
+        unique = np.unique(temp_df.iloc[:,], return_counts=True )
+        ohe_df = pd.get_dummies(temp_df, dtype=float)
+        self.y_df = ohe_df
         return self.y_df.copy()
 
-# if __name__ == "main":
-#     loaded_crypto_data = DataLoad(pairs_symbols=None,
-#                                   time_intervals=['15m'],
-#                                   source_directory="../source_root",
-#                                   start_period='2021-09-01 00:00:00',
-#                                   end_period='2021-12-05 23:59:59',
-#
-#                                   )
-#
-#     fd = DataFeatures(loaded_crypto_data)
-#     profile_1 = DSProfile()
-#     x_df = fd.collect_features(profile_1)
+    # # Предсказание силы движения по модулю (п1 переводим в ohe [1, 2, 3, 4, 5]) - классификация.
+    # # Идея в том, чтобы разделить предсказание направления [0, 1] и силу этого движения
+    # def create_y_close1_close2_sub_power(self):
+    #     self.y_df["close"] = self.source_df_1["close"]
+    #     normalized_df_1 = (self.source_df_1["close"] - self.source_df_1["close"].min()) / (
+    #             self.source_df_1["close"].max() - self.source_df_1["close"].min())
+    #     normalized_df_2 = (self.source_df_2["close"] - self.source_df_2["close"].min()) / (
+    #             self.source_df_2["close"].max() - self.source_df_2["close"].min())
+    #     sub_df = pd.DataFrame()
+    #     sub_df["close"] = pd.DataFrame(normalized_df_1 - normalized_df_2).abs()
+    #     # sub_df = self.create_y_close1_close2_sub()
+    #     sub_df_min = sub_df.abs().min().min()
+    #     sub_df_max = sub_df.abs().max().max()
+    #     sub_df_step = (sub_df_max-sub_df_min)/5
+    #     power_list = list(np.arange(sub_df_min, sub_df_max, sub_df_step))
+    #     power_list.insert(5, sub_df_max)
+    #     for idx in range(5):
+    #         sub_df.loc[(sub_df["close"] >= power_list[idx]) & (sub_df["close"] < power_list[idx+1]+0.0001), "close"] = idx
+    #     ohe = pd.get_dummies(sub_df["close"], dtype=float)
+    #     self.y_df = ohe.drop(index=self.drop_idxs)
+    #     return self.y_df.copy()
+
+if __name__ == "main":
+    loaded_crypto_data = DataLoad(pairs_symbols=None,
+                                  time_intervals=['15m'],
+                                  source_directory="../source_root",
+                                  start_period='2021-09-01 00:00:00',
+                                  end_period='2021-12-05 23:59:59',
+
+                                  )
+
+    fd = DataFeatures(loaded_crypto_data)
+    profile_1 = DSProfile()
+    x_df = fd.collect_features(profile_1)
 
 
