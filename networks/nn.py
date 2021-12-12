@@ -273,8 +273,8 @@ class MainNN:
                 conv_test.append('True')
             else:
                 conv_test.append('False')
-
             print(f'Index: {i}, Prediction: {prediction}, Real: {np.argmax(y_test_org[i])},\t====> {y_test_org[i]} {conv_test[i]}')
+
         uniques, counts = np.unique(conv_test, return_counts=True)
         for unq, cnt in zip(uniques, counts):
             print("calculation", unq, cnt)

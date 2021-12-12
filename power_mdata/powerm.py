@@ -1,12 +1,12 @@
 import pandas as pd
-
 from datamodeling import *
 from analyze import DataLoad
 from networks import *
 import tensorflow as tf
+from tensorflow.keras.callbacks import ReduceLROnPlateau
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Input, Flatten, Conv1D, ReLU, ELU, MaxPool1D, Reshape, Dropout
 
-__version__ = 0.0007
+__version__ = 0.0013
 
 
 class MarkedDataSet:
@@ -95,6 +95,10 @@ class MarkedDataSet:
         self.y_df = self.all_data_df.iloc[:, -1:]
         print("Y (true) dataframe data example:")
         print(self.y_df.head().to_string())
+        uniques, counts = np.unique(self.y_df.values, return_counts=True)
+        for unq, cnt in zip(uniques, counts):
+            print("Total:", unq, cnt)
+
         self.calculate_split_df()
         msg = f"Split dataframe:" \
               f"Train start-end and length: {self.train_df_start_end[0]}-{self.train_df_start_end[1]} {self.train_df_start_end[0] - self.train_df_start_end[1]}\n" \
@@ -218,13 +222,17 @@ def get_resnet1d_model(
 
 class TrainNN:
     def __init__(self, mrk_dataset: MarkedDataSet):
+        self.power_trend = 0.055
         self.net_name = "resnet1d"
         self.experiment_name = "ETHUSDT-1m"
+        self.symbol = self.experiment_name.split('-')[0]
+        self.timeframe = self.experiment_name.split('-')[1]
+        self.power_trends_list = (0.15, 0.075, 0.055, 0.0275)
         self.mrk_dataset = mrk_dataset
         self.history = None
         self.keras_model = get_resnet1d_model()
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
-        self.path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
+        self.path_filename = os.path.join( 'outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
         self.keras_model.compile(optimizer=self.optimizer,
                                  loss="binary_crossentropy",
                                  metrics=["accuracy"],
@@ -232,6 +240,9 @@ class TrainNN:
         pass
 
     def train(self):
+        chkp = tf.keras.callbacks.ModelCheckpoint(os.path.join("outputs", f"{self.experiment_name}_{self.net_name}_.h5"), monitor='val_accuracy', save_best_only=True)
+        rlrs = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=13, min_lr=0.000001)
+        callbacks = [rlrs, chkp]
         path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
         tf.keras.utils.plot_model(self.keras_model,
                                   to_file=path_filename,
@@ -241,10 +252,21 @@ class TrainNN:
                                   dpi=96,
                                   )
         self.history = self.keras_model.fit(self.mrk_dataset.train_gen,
-                                            epochs=20,
+                                            epochs=100,
                                             validation_data=self.mrk_dataset.train_gen,
                                             verbose=1,
+                                            callbacks=callbacks
                                             )
+    def get_predict(self):
+        path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}.h5")
+        tf.keras.models.load_model(path_filename)
+        self.y_Pred = self.keras_model.predict(self.x_Test)
+        return self.y_Pred
+
+    def load_best_weights(self):
+        path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}.h5")
+        tf.keras.models.load_model(path_filename)
+        pass
 
     def figshow_base(self):
         fig = plt.figure(figsize=(12, 7))
@@ -274,9 +296,79 @@ class TrainNN:
         plt.show()
         pass
 
+    def check_binary(self):
+        x_test = self.mrk_dataset.x_Test[-600:-500]
+        y_test_org = self.mrk_dataset.y_Test[-600:-500]
+        conv_test = []
+        for i in range(len(x_test)):
+            x = x_test[i]
+            x = np.expand_dims(x, axis=0)
+            prediction = self.keras_model.predict(x)
+            if prediction > 0.5:
+                prediction = 1
+            else:
+                prediction = 0
+            if prediction == y_test_org[i]:
+                conv_test.append('True')
+            else:
+                conv_test.append('False')
+
+            print(f'Index: {i}, Prediction: {prediction}, Real: {y_test_org[i]},\t====> {y_test_org[i]} {conv_test[i]}')
+
+        uniques, counts = np.unique(conv_test, return_counts=True)
+        for unq, cnt in zip(uniques, counts):
+            print("Total:", unq, cnt)
+
+    def show_trend_predict(self):
+        weight = self.power_trend
+        print(f"Считаем тренд с power = {weight}")
+        data_df = self.mrk_dataset.features_df[
+                  self.mrk_dataset.test_df_start_end[0]: self.mrk_dataset.test_df_start_end[
+                                                             1] - self.mrk_dataset.tsg_window_length]
+        y_df = self.mrk_dataset.y_df[self.mrk_dataset.test_df_start_end[0]: self.mrk_dataset.test_df_start_end[
+                                                                                1] - self.mrk_dataset.tsg_window_length]
+        trend_pred = self.keras_model.predict(self.mrk_dataset.x_Test)
+        trend_pred = trend_pred.flatten()
+        trend_pred_df = pd.DataFrame(data=trend_pred, columns=["trend"])
+        # for visualization we use scaling of trend = 1 to data_df["close"].max()
+        max_close = data_df["close"].max()
+        min_close = data_df["close"].min()
+        mean_close = data_df["close"].mean()
+        trend_pred_df.loc[(trend_pred_df["trend"] > 0.5), "trend"] = max_close
+        y_df.loc[(y_df["y"] == 1), "y"] = max_close
+        trend_pred_df.loc[(trend_pred_df["trend"] <= 0.5), "trend"] = min_close
+        y_df.loc[(y_df["y"] == 0), "y"] = min_close
+        data_df[f"trend_{weight}"] = y_df["y"]
+
+        col_list = data_df.columns.to_list()
+        try:
+           col_list.index("close")
+        except ValueError:
+           msg = f"Error: 'close' column not found in pd.DataFrame only {col_list}. Can't show figure"
+           sys.exit(msg)
+        fig = plt.figure(figsize=(20, 12))
+        ax1 = fig.add_subplot(2, 1,  1)
+        ax1.plot(
+                 data_df.index, data_df[f"trend_{weight}"],
+                 data_df.index, data_df["close"],
+                 )
+        ax1.set_ylabel(f'True, weight = {weight}', color='r')
+        plt.title(f"Trend with weight: {weight}")
+        ax2 = fig.add_subplot(2, 1,  2)
+        ax2.plot(
+                 data_df.index, data_df["close"],
+                 data_df.index, trend_pred_df["trend"]
+                 )
+        ax2.set_ylabel(f'Pred, weight = {weight}', color='b')
+        plt.title(f"Trend with weight: {weight}")
+        plt.show()
+        pass
+
 path_filename ="../source_ds/1m/ETHUSDT-1m.csv"
 dataset = MarkedDataSet(path_filename)
 tr = TrainNN(dataset)
 tr.train()
-tr.figshow_base()
+# tr.figshow_base()
+tr.show_trend_predict()
+tr.check_binary()
 
