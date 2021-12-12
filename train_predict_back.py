@@ -56,7 +56,7 @@ if __name__ == '__main__':
     bt.plot(plot_volume=True, relative_equity=True)
     print('===' * 30, '\nBacktesting done by: ', time.time() - start, '\n====' * 30, '\n')
 
-path_filename ="../source_ds/1m/ETHUSDT-1m.csv"
+path_filename = "source_ds/1m/ETHUSDT-1m.csv"
 dataset = MarkedDataSet(path_filename)
 tr = TrainNN(dataset)
 tr.epochs = 10
