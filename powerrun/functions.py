@@ -129,7 +129,9 @@ class MarkedDataSet:
         temp_2[:self.val_df_start_end[0]] = 0
         temp_2[self.val_df_start_end[1]:] = 0
         temp_3[:self.test_df_start_end[0]] = 0
-        dataset_split_show(temp_1, temp_2, temp_3, self.path_filename.split(".")[0])
+        symbol = self.path_filename.split("-")[0].split("/")[-1]
+        timeframe = self.path_filename.split("-")[1].split(".")[0]
+        dataset_split_show(temp_1, temp_2, temp_3, f"{symbol}-{timeframe}")
         self.features_scaler = RobustScaler().fit(self.features_df.values)
         x_arr = self.features_scaler.transform(self.features_df.values)
         print("Create arrays with X (features)", x_arr.shape)
@@ -250,13 +252,13 @@ class TrainNN:
                                             verbose=1,
                                             callbacks=callbacks
                                             )
+
     def compile(self):
         self.keras_model.compile(optimizer=self.optimizer,
                                  loss="binary_crossentropy",
                                  metrics=["accuracy"],
                                  )
         pass
-
 
     def get_predict(self):
         path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}.h5")
@@ -294,9 +296,6 @@ class TrainNN:
         plt.legend()
         plt.show()
         pass
-
-
-
 
     def check_binary(self):
         x_test = self.mrk_dataset.x_Test[-600:-500]
@@ -365,9 +364,6 @@ class TrainNN:
         plt.title(f"Trend with weight: {weight}")
         plt.show()
         pass
-
-
-
 
 
 
