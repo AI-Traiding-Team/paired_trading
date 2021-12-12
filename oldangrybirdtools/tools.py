@@ -8,16 +8,28 @@ from pandas import DataFrame as df
 class AngryFeatureMaker:
     def __init__(self, data):
         self.data = data
+        self.xScaler = RobustScaler().fit(data)
         self.make_dirty_features()
 
     def __make_dirty_features(self, data):
-        self.feat_data = self.data
+        temp_df = self.data.copy(deep=False)
+        temp_df['year'] = temp_df.index.year
+        temp_df['quarter'] = temp_df.index.quarter
+        temp_df['month'] = temp_df.index.month,
+        temp_df['weeknum'] = temp_df.index.isocalendar().week,
+        temp_df['weekday'] = temp_df.index.day_of_week,
+        temp_df['hour'] = temp_df.index.hour,
+        temp_df['minute'] = temp_df.index.minute,
+        temp_df['sin'] = temp_df['Close'].apply(lambda x: np.sin(x))
+        temp_df.dropna(axis=0, inplace=True)
+        self.feat_data = self.xScaler.transform(temp_df)
+        self.input_shape = (self.ensemble, self.feat_data.shape[1])
 
     def run(self):
         return self.feat_data
 
 
-class BeachBirdGenerator:
+class BeachBirdSeriesGenerator:
     def __init__(self, dataset, batch_size, ensemble, one_hot_enc=True, dropna=False, drop_signal=False,
                  date_to_feat=False, **kwargs):
         self.featurized = False
