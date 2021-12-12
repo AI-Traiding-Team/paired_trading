@@ -106,10 +106,10 @@ class MarkedDataSet:
         print(self.all_data_df.head().to_string())
         self.features_df = self.all_data_df.iloc[:, :-1]
         print("X (features) dataframe data example:")
-        print(self.features_df.head().to_string())
+        print(self.features_df.head().to_string(), f"\n")
         self.y_df = self.all_data_df.iloc[:, -1:]
-        print("Y (true) dataframe data example:")
-        print(self.y_df.head().to_string())
+        print("Signal (true) dataframe data example:")
+        print(self.y_df.head().to_string(), f"\n")
         uniques, counts = np.unique(self.y_df.values, return_counts=True)
         for unq, cnt in zip(uniques, counts):
             print("Total:", unq, cnt)
@@ -119,7 +119,7 @@ class MarkedDataSet:
               f"Train start-end and length: {self.train_df_start_end[0]}-{self.train_df_start_end[1]} {self.train_df_start_end[0] - self.train_df_start_end[1]}\n" \
               f"Validation start-end and length: {self.val_df_start_end[0]}-{self.val_df_start_end[1]} {self.val_df_start_end[0] - self.val_df_start_end[1]}\n" \
               f"Test start-end and length: {self.test_df_start_end[0]}-{self.test_df_start_end[1]} {self.test_df_start_end[0] - self.test_df_start_end[1]}"
-        print(msg)
+        print(f"{msg}\n")
         self.split_data_df()
         temp_1 = pd.DataFrame()
         temp_1["close"] = self.all_data_df["close"].copy()
@@ -136,7 +136,7 @@ class MarkedDataSet:
         x_arr = self.features_scaler.transform(self.features_df.values)
         print("Create arrays with X (features)", x_arr.shape)
         y_arr = self.y_df.values.reshape(-1, 1)
-        print("Create arrays with Y (true)", y_arr.shape)
+        print("Create arrays with Signal (true)", y_arr.shape)
         self.prepare_datagens(x_arr, y_arr)
         pass
 
@@ -160,7 +160,7 @@ class MarkedDataSet:
         msg = f"Created arrays: \nx_Train_data = {x_Train_data.shape}, y_Train_data = {y_Train_data.shape}\n" \
               f"x_Val_data = {x_Val_data.shape}, y_Val_data = {y_Val_data.shape}\n" \
               f"x_Test_data = {x_Test_data.shape}, y_Test_data = {y_Test_data.shape}\n"
-        print(msg)
+        print(f"{msg}\n")
         """" Using generator 1 time to get solid data arrays"""
         x_Train_gen = self.get_train_generator(x_Train_data, y_Train_data)
         x_Val_gen = self.get_val_generator(x_Val_data, y_Val_data)
@@ -297,29 +297,6 @@ class TrainNN:
         plt.show()
         pass
 
-    def check_binary(self):
-        x_test = self.mrk_dataset.x_Test[-600:-500]
-        y_test_org = self.mrk_dataset.y_Test[-600:-500]
-        conv_test = []
-        for i in range(len(x_test)):
-            x = x_test[i]
-            x = np.expand_dims(x, axis=0)
-            prediction = self.keras_model.predict(x)
-            if prediction > 0.5:
-                prediction = 1
-            else:
-                prediction = 0
-            if prediction == y_test_org[i]:
-                conv_test.append('True')
-            else:
-                conv_test.append('False')
-
-            print(f'Index: {i}, Prediction: {prediction}, Real: {y_test_org[i]},\t====> {y_test_org[i]} {conv_test[i]}')
-
-        uniques, counts = np.unique(conv_test, return_counts=True)
-        for unq, cnt in zip(uniques, counts):
-            print("Total:", unq, cnt)
-
     def show_trend_predict(self):
         weight = self.power_trend
         print(f"Считаем тренд с power = {weight}")
@@ -336,10 +313,10 @@ class TrainNN:
         min_close = data_df["close"].min()
         mean_close = data_df["close"].mean()
         trend_pred_df.loc[(trend_pred_df["trend"] > 0.5), "trend"] = max_close
-        y_df.loc[(y_df["y"] == 1), "y"] = max_close
+        y_df.loc[(y_df["signal"] == 1), "signal"] = max_close
         trend_pred_df.loc[(trend_pred_df["trend"] <= 0.5), "trend"] = min_close
-        y_df.loc[(y_df["y"] == 0), "y"] = min_close
-        data_df[f"trend_{weight}"] = y_df["y"]
+        y_df.loc[(y_df["signal"] == 0), "signal"] = min_close
+        data_df[f"trend_{weight}"] = y_df["signal"]
 
         col_list = data_df.columns.to_list()
         try:

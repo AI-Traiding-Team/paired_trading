@@ -286,8 +286,8 @@ class Marker():
         self.symbol = symbol
         self.timeframe = timeframe
         dataset_df = self.collect_features()
-        dataset_df['y'] = self.create_power_trend(weight=weight)
-        uniques, counts = np.unique(dataset_df['y'].values, return_counts=True)
+        dataset_df['signal'] = self.create_power_trend(weight=weight)
+        uniques, counts = np.unique(dataset_df['signal'].values, return_counts=True)
         msg_2 = ""
         for unq, cnt in zip(uniques, counts):
             msg_2 += f"Unique: {unq} {cnt}\n"
@@ -313,7 +313,7 @@ class Marker():
             self.create_dataset_df(self.symbol,
                                    timeframe=self.timeframe,
                                    target_directory=target_directory,
-                                   weight=0.055)
+                                   weight=0.0275)
             pass
 
 
@@ -325,6 +325,6 @@ if __name__ == "__main__":
                                   end_period='2021-12-05 23:59:59',
                                   )
     mr = Marker(loaded_crypto_data)
-    # mr.mark_all_loader_df(target_directory="../source_ds")
-    mr.create_dataset_df("ETHUSDT", timeframe="1m", target_directory="../source_ds", weight=0.0275)
+    mr.mark_all_loader_df(target_directory="../source_ds")
+    # mr.create_dataset_df("ETHUSDT", timeframe="1m", target_directory="../source_ds", weight=0.0275)
     # mr.create_dataset_df("BTCUSDT", timeframe="1m", target_directory="../source_ds", weight=0.055)
