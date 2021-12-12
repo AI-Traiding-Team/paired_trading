@@ -6,7 +6,7 @@ from networks import *
 import tensorflow as tf
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Input, Flatten, Conv1D, ReLU, ELU, MaxPool1D, Reshape, Dropout
 
-__version__ = 0.0005
+__version__ = 0.0007
 
 
 class MarkedDataSet:
@@ -202,8 +202,7 @@ def get_resnet1d_model(
         return out
 
     x_in = Input(shape=input_shape)
-    x = Dense(32, activation="elu")(x_in)
-    x = Reshape((-1, 32))(x)
+    x = Dense(16, activation="elu")(x_in)
     x = Conv1D(kernels, stride)(x)
     x = residual_block(x, kernels, stride)
     x = residual_block(x, kernels, stride)
@@ -217,26 +216,67 @@ def get_resnet1d_model(
     model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
     return model
 
+class TrainNN:
+    def __init__(self, mrk_dataset: MarkedDataSet):
+        self.net_name = "resnet1d"
+        self.experiment_name = "ETHUSDT-1m"
+        self.mrk_dataset = mrk_dataset
+        self.history = None
+        self.keras_model = get_resnet1d_model()
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
+        self.path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
+        self.keras_model.compile(optimizer=self.optimizer,
+                                 loss="binary_crossentropy",
+                                 metrics=["accuracy"],
+                                 )
+        pass
+
+    def train(self):
+        path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
+        tf.keras.utils.plot_model(self.keras_model,
+                                  to_file=path_filename,
+                                  show_shapes=True,
+                                  show_layer_names=True,
+                                  expand_nested=True,
+                                  dpi=96,
+                                  )
+        self.history = self.keras_model.fit(self.mrk_dataset.train_gen,
+                                            epochs=20,
+                                            validation_data=self.mrk_dataset.train_gen,
+                                            verbose=1,
+                                            )
+
+    def figshow_base(self):
+        fig = plt.figure(figsize=(12, 7))
+        sns.set_style("white")
+        ax1 = fig.add_subplot(1, 1, 1)
+        ax1.set_axisbelow(True)
+        ax1.minorticks_on()
+        N = np.arange(0, len(self.history.history["loss"]))
+        plt.plot(N, self.history.history["loss"], label="loss")
+        if 'dice_coef' in self.history.history:
+            plt.plot(N, self.history.history["dice_coef"], label="dice_coef")
+        if 'val_dice_coef' in self.history.history:
+            plt.plot(N, self.history.history["val_dice_coef"], label="val_dice_coef")
+        if 'mae' in self.history.history:
+            plt.plot(N, self.history.history["mae"], label="mae")
+        if 'accuracy' in self.history.history:
+            plt.plot(N, self.history.history["accuracy"], label="accuracy")
+        if 'accuracy' in self.history.history:
+            plt.plot(N, self.history.history["val_accuracy"], label="val_accuracy")
+        if 'val_loss' in self.history.history:
+            plt.plot(N, self.history.history["val_loss"], label="val_loss")
+        if 'lr' in self.history.history:
+            lr_list = [x * 1000 for x in self.history.history["lr"]]
+            plt.plot(N, lr_list, linestyle=':', label="lr * 1000")
+        plt.title(f"Training Loss and Accuracy")
+        plt.legend()
+        plt.show()
+        pass
+
 path_filename ="../source_ds/1m/ETHUSDT-1m.csv"
-mrk_dataset = MarkedDataSet(path_filename)
-experiment_name = "ETHUSDT-1m"
-keras_model = get_resnet1d_model()
-optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
-keras_model.compile(optimizer= optimizer,
-                    loss="binary_crossentropy",
-                    metrics=["accuracy"],
-                    )
-path_filename = os.path.join(os.getcwd(), 'outputs', f"{experiment_name}_NN.png")
-tf.keras.utils.plot_model(keras_model,
-                          to_file=path_filename,
-                          show_shapes=True,
-                          show_layer_names=True,
-                          expand_nested=True,
-                          dpi=96,
-                          )
-history = keras_model.fit(mrk_dataset.train_gen,
-                          epochs=20,
-                          validation_data=mrk_dataset.train_gen,
-                          verbose=1,
-                          )
+dataset = MarkedDataSet(path_filename)
+tr = TrainNN(dataset)
+tr.train()
+tr.figshow_base()
 
