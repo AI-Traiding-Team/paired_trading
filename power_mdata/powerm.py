@@ -240,7 +240,7 @@ class TrainNN:
         pass
 
     def train(self):
-        chkp = tf.keras.callbacks.ModelCheckpoint(os.path.join("outputs", f"{self.experiment_name}_{self.net_name}_.h5"), monitor='val_accuracy', save_best_only=True)
+        chkp = tf.keras.callbacks.ModelCheckpoint(os.path.join("outputs", f"{self.experiment_name}_{self.net_name}.h5"), monitor='val_accuracy', save_best_only=True)
         rlrs = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=13, min_lr=0.000001)
         callbacks = [rlrs, chkp]
         path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
