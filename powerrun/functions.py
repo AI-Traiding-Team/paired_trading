@@ -62,6 +62,8 @@ class MarkedDataSet:
         self.x_Test = None
         self.input_shape = None
         self.prepare_data()
+        self.x_test_df_backrade = None
+
 
     def get_train_generator(self, x_Train_data, y_Train_data):
         self.train_gen = TSDataGenerator(data=x_Train_data,
@@ -215,6 +217,7 @@ class MarkedDataSet:
 
 class TrainNN:
     def __init__(self, mrk_dataset: MarkedDataSet):
+
         self.y_Pred = None
         self.power_trend = 0.0275
         self.net_name = "resnet1d"
@@ -299,21 +302,21 @@ class TrainNN:
         pass
 
     def backtest_test_dataset(self):
+        print("Creating backtesting set")
         data_df = self.mrk_dataset.features_df[
                   self.mrk_dataset.test_df_start_end[0]: self.mrk_dataset.test_df_start_end[
                                                              1] - self.mrk_dataset.tsg_window_length]
         trend_pred = self.keras_model.predict(self.mrk_dataset.x_Test)
-        trend_pred = trend_pred.flatten()
-        trend_pred_df = pd.DataFrame(data=trend_pred, columns=["trend"])
-        trend_pred_df.loc[(trend_pred_df["trend"] > 0.5), "trend"] = 1
-        trend_pred_df.loc[(trend_pred_df["trend"] <= 0.5), "trend"] = 0
-        data_df["Signal"] = trend_pred_df["trend"]
+        data_df['trend'] = trend_pred.flatten()
+        data_df['Signal'] = np.where(data_df['trend'] > 0.5, 1, 0)
+        self.mrk_dataset.test_df_backtrade = data_df.drop(columns=["trend"])
+
         print("\nSignal (pred) dataframe data example for backtesting:")
         print(data_df["Signal"].head().to_string(), f"\n")
         uniques, counts = np.unique(data_df["Signal"].values, return_counts=True)
         for unq, cnt in zip(uniques, counts):
             print("Total:", unq, cnt)
-        return data_df
+        return self.mrk_dataset.x_test_df_backrade
 
     def show_trend_predict(self):
         weight = self.power_trend
