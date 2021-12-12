@@ -27,8 +27,8 @@ if __name__ == '__main__':
 
 
 
-    params = {'optimize_subj': 'Win Rate [%]', #Best Trade [%]', #'Return [%]',
-              'n_trials': 200,
+    params = {'optimize_subj': 'Win Rate [%]', #Best Trade [%]', #'Return [%]','Calmar Ratio', #
+              'n_trials': 100,
               'window_size': {'low': 5, 'high': 200, 'step': 2},
               'strategy': [LongStrategy, LongShortStrategy],
               'target_maker': BigFatMommyMakesTargetMarkers,

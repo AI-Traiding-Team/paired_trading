@@ -53,17 +53,17 @@ class BadNegroEvelOptimizer:
                 frozen_trial.value,
                 frozen_trial.params,
             )
+            print(mess)
             self.best.update({study.study_name: {'subject': self.optimize_subj,
                                                  'direction': self.direction,
                                                  self.optimize_subj: frozen_trial.value,
                                                  'params': frozen_trial.params}
                               })
-            print(mess)
 
     def run(self):
         self.study.optimize(
-            Objective(data=self.data,
-                      target_maker=self.target_maker, window_size=self.window_size, strategy=self.strategy,
+            Objective(data=self.data, target_maker=self.target_maker,
+                      window_size=self.window_size, strategy=self.strategy,
                       optimize_subj=self.optimize_subj, cash=self.cash),
                        n_trials=self.n_trials, callbacks=[self.__logging_callback])
         print('optimization done by: ', time.time() - self.start)

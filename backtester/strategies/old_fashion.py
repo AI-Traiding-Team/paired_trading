@@ -1,5 +1,13 @@
-from backtesting import Backtest, Strategy
+from backtesting import Strategy
 from backtesting.lib import SignalStrategy
+
+
+class BaseStrategy(Strategy):
+    def _check_params(self, params):
+        for k, v in params.items():
+            setattr(self, k, v)
+        return params
+
 
 ######################################################################
 class SimpleSignalStrategy(SignalStrategy):
@@ -9,12 +17,13 @@ class SimpleSignalStrategy(SignalStrategy):
 
 
 ######################################################################
-class LongStrategy(Strategy):
+class LongStrategy(BaseStrategy):
 
     def init(self):
         self.signal = self.I(lambda x: x, self.data.Signal, name='Signal')
 
     def next(self):
+        #ToDo добавить торговлю ограниченным лотом
         # торгуем по крайней цене закрытия
         price = self.data.Close[-1]
 
@@ -30,7 +39,7 @@ class LongStrategy(Strategy):
 
 
 ######################################################################
-class LongShortStrategy(Strategy):
+class LongShortStrategy(BaseStrategy):
 
     def init(self):
         self.signal = self.I(lambda x: x, self.data.Signal, name='Signal')
