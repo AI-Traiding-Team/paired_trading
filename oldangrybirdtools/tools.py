@@ -7,53 +7,49 @@ from pandas import DataFrame as df
 
 class AngryFeatureMaker:
     def __init__(self, data):
-        self.data = data
-        self.xScaler = RobustScaler().fit(data)
-        self.make_dirty_features()
+        self.data_x = data.drop(columns=['Signal'])
+        self_data_y = data['Signal'].copy()
+        self.xScaler = RobustScaler().fit([self.data_x])
+        self.__make_dirty_features()
 
-    def __make_dirty_features(self, data):
-        temp_df = self.data.copy(deep=False)
+    def __make_dirty_features(self):
+        temp_df = self.data_x.copy(deep=False)
         temp_df['year'] = temp_df.index.year
         temp_df['quarter'] = temp_df.index.quarter
-        temp_df['month'] = temp_df.index.month,
-        temp_df['weeknum'] = temp_df.index.isocalendar().week,
-        temp_df['weekday'] = temp_df.index.day_of_week,
-        temp_df['hour'] = temp_df.index.hour,
-        temp_df['minute'] = temp_df.index.minute,
+        temp_df['month'] = temp_df.index.month
+        temp_df['weeknum'] = temp_df.index.isocalendar().week
+        temp_df['weekday'] = temp_df.index.day_of_week
+        temp_df['hour'] = temp_df.index.hour
+        temp_df['minute'] = temp_df.index.minute
         temp_df['sin'] = temp_df['Close'].apply(lambda x: np.sin(x))
-        temp_df.dropna(axis=0, inplace=True)
-        self.feat_data = self.xScaler.transform(temp_df)
-        self.input_shape = (self.ensemble, self.feat_data.shape[1])
+        self.feat_data = temp_df
+        y = self.data_y.copy().to_numpy().reshape(-1, 1)
+        self.y_encoder = OneHotEncoder().fit(y)
+        self.y_ohot = self.y_encoder.transform(y).toarray()
 
     def run(self):
-        return self.feat_data
+        return self.feat_data, self.y_ohot
 
 
 class BeachBirdSeriesGenerator:
-    def __init__(self, dataset, batch_size, ensemble, one_hot_enc=True, dropna=False, drop_signal=False,
-                 date_to_feat=False, **kwargs):
-        self.featurized = False
-        self.data = dataset
+    def __init__(self, dataset, batch_size, sample_x, **kwargs):
+        self.source_data = dataset
         self.batch_size = batch_size
-        self.ensemble = ensemble
-        self.dropna = dropna
-        self.one_hot_enc = one_hot_enc
-        self.shape = self.data.shape
-        self.drop_signal = drop_signal
-        self.date_to_feat = date_to_feat
+        self.sample_x = sample_x
+        self.feat_data, self.target_data = AngryFeatureMaker(dataset).run()
+        pass
+        # self.input_shape = (self.ensemble, self.feat_data.shape[1])
 
-        self.training_start_index = 0 if 'training_start_index' not in kwargs.keys() else kwargs['training_start_index']
-        self.val_start_index = 0 if 'val_start_index' not in kwargs.keys() else kwargs['val_start_index']
-        self.test_start_index = 0 if 'test_start_index' not in kwargs.keys() else kwargs['test_start_index']
-        self.training_end_index = self.shape[0] - 1 if 'training_end_index' not in kwargs.keys() else kwargs[
-            'training_end_index']
-        self.val_end_index = self.shape[0] - 1 if 'val_end_index' not in kwargs.keys() else kwargs['val_end_index']
-        self.test_end_index = self.shape[0] - 1 if 'test_end_index' not in kwargs.keys() else kwargs['test_end_index']
-
-        self.stride = 1 if 'strid' not in kwargs.keys() else kwargs['stride']
-        self.sampling_rate = 1 if 'sampling_rate' not in kwargs.keys() else kwargs['sampling_rate']
-
-        self.featurize()
+        # self.training_start_index = 0 if 'training_start_index' not in kwargs.keys() else kwargs['training_start_index']
+        # self.val_start_index = 0 if 'val_start_index' not in kwargs.keys() else kwargs['val_start_index']
+        # self.test_start_index = 0 if 'test_start_index' not in kwargs.keys() else kwargs['test_start_index']
+        # self.training_end_index = self.shape[0] - 1 if 'training_end_index' not in kwargs.keys() else kwargs[
+        #     'training_end_index']
+        # self.val_end_index = self.shape[0] - 1 if 'val_end_index' not in kwargs.keys() else kwargs['val_end_index']
+        # self.test_end_index = self.shape[0] - 1 if 'test_end_index' not in kwargs.keys() else kwargs['test_end_index']
+        #
+        # self.stride = 1
+        # self.sampling_rate = 1
 
     def featurize(self):
         if self.one_hot_enc:
