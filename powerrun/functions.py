@@ -224,6 +224,7 @@ class TrainNN:
         self.power_trends_list = (0.15, 0.075, 0.055, 0.0275)
         self.mrk_dataset = mrk_dataset
         self.history = None
+        self.epochs = 15
         self.keras_model = get_resnet1d_model()
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
         self.optimizer_sgd = tf.keras.optimizers.SGD(learning_rate=1e-5,
@@ -247,7 +248,7 @@ class TrainNN:
                                   dpi=96,
                                   )
         self.history = self.keras_model.fit(self.mrk_dataset.train_gen,
-                                            epochs=15,
+                                            epochs=self.epochs,
                                             validation_data=self.mrk_dataset.train_gen,
                                             verbose=1,
                                             callbacks=callbacks

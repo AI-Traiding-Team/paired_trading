@@ -3,6 +3,7 @@ from functions import *
 path_filename ="../source_ds/1m/ETHUSDT-1m.csv"
 dataset = MarkedDataSet(path_filename)
 tr = TrainNN(dataset)
+tr.epochs = 17
 tr.train()
 tr.figshow_base()
 # tr.compile()
