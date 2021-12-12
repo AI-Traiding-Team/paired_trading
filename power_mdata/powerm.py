@@ -135,9 +135,9 @@ class MarkedDataSet:
             # x_Test_gen = self.get_test_generator(x_Test_data, y_Test_data)
         msg = f"Created arrays: \nx_Train_data = {x_Train_data.shape}, y_Train_data = {y_Train_data.shape}\n" \
               f"x_Val_data = {x_Val_data.shape}, y_Val_data = {y_Val_data.shape}\n" \
-              f"x_Test_data = {x_Test_data.shape}, y_Test_data = {y_Test_data.shape}\n" \
-              """ Using generator 1 time to get solid data arrays"""
+              f"x_Test_data = {x_Test_data.shape}, y_Test_data = {y_Test_data.shape}\n"
         print(msg)
+        """" Using generator 1 time to get solid data arrays"""
         x_Train_gen = self.get_train_generator(x_Train_data, y_Train_data)
         x_Val_gen = self.get_val_generator(x_Val_data, y_Val_data)
         self.x_Train, self.y_Train = self.create_data_from_gen(x_Train_data, y_Train_data)
