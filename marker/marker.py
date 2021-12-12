@@ -329,7 +329,7 @@ class Marker():
               f"{msg_2}"
 
         print(msg)
-        print(dataset_df.head(5).to_string(), f'\n')
+        print(dataset_df.tail(5).to_string(), f'\n')
         if save_file:
             path_filename = os.path.join(target_directory, self.timeframe, f'{self.symbol}-{self.timeframe}.csv')
             dataset_df.to_csv(path_filename)
@@ -358,13 +358,13 @@ class Marker():
 if __name__ == "__main__":
     loaded_crypto_data = DataLoad(pairs_symbols=None,
                                   time_intervals=['1m'],
-                                  source_directory="/Users/chekh/Development/Python/paired_trading/source_root",
+                                  source_directory="../source_root",
                                   start_period='2021-09-01 00:00:00',
                                   end_period='2021-12-05 23:59:59',
                                   )
     mr = Marker(loaded_crypto_data)
     # mr.mark_all_loader_df(target_directory="../source_ds", signal_method=0,  weight=0.0275)
-    mr.mark_all_loader_df(target_directory="/Users/chekh/Development/Python/paired_trading/source_ds1", signal_method=1, window_size=5)
+    mr.mark_all_loader_df(target_directory="../source_ds1", signal_method=1, window_size=5)
 
     # mr.create_dataset_df_method_0("ETHUSDT", timeframe="1m", target_directory="../source_ds", weight=0.0275)
     # mr.create_dataset_df_method_1("ETHUSDT", timeframe="1m", target_directory="../source_ds1", window_size = 5)
