@@ -44,7 +44,10 @@ class MarkedDataSet:
             self.all_data_df = all_data_df
         else:
             self.all_data_df = None
-            self.all_data_df = pd.read_csv(self.path_filename, index_col="datetimeindex")
+            self.all_data_df = pd.read_csv(self.path_filename,
+
+                                           index_col="datetimeindex")
+            self.all_data_df.index = pd.to_datetime(self.all_data_df.index)
         self.features_df = None
         self.y_df = None
         self.train_df_len = None
@@ -310,9 +313,22 @@ class TrainNN:
                                                              1] - self.mrk_dataset.tsg_window_length]
         trend_pred = self.keras_model.predict(self.mrk_dataset.x_Test)
         data_df['trend'] = trend_pred.flatten()
-        data_df['Signal'] = np.where(data_df['trend'] > 0.5, 1, 0)
-        data_df.columns = [item.lower().capitalize() for item in data_df.columns]
-        self.mrk_dataset.test_df_backtrade = data_df.drop(columns=["trend"])
+        data_df.loc[data_df["trend"] <= 0.5, "trend"] = 0.0
+        data_df.loc[data_df["trend"] > 0.5, "trend"] = 1.0
+        # data_df["Signal"] = (data_df["trend"] > 0.5).astype(float)
+        # # data_df['Signal'] = np.where(data_df['trend'] > 0.5, 1.0, 0.0)
+        # data_df = (data_df["trend"] > 0.5).astype(int)
+        data_df["Signal"] = data_df['trend']
+        self.mrk_dataset.test_df_backtrade = data_df
+        self.mrk_dataset.test_df_backtrade.drop(columns=[
+                                                         "trend",
+                                                         "quarter", "month", "weeknum", "weekday", "hour",
+                                                         "minute", "log_close", "log_volume", "diff_close",
+                                                         "log_close_close_shift", "sin_close"] , inplace=True)
+
+        self.mrk_dataset.test_df_backtrade.columns = [item.lower().capitalize() for item in data_df.columns]
+        data_df = self.mrk_dataset.test_df_backtrade
+
 
         print("\nSignal (pred) dataframe data example for backtesting:")
         print(data_df["Signal"].head().to_string(), f"\n")
@@ -320,7 +336,7 @@ class TrainNN:
         for unq, cnt in zip(uniques, counts):
             print("Total:", unq, cnt)
 
-        return self.mrk_dataset.x_test_df_backrade
+        return data_df
 
     def show_trend_predict(self):
         weight = self.power_trend

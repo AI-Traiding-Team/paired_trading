@@ -10,7 +10,7 @@ from optimizer import Objective
 
 import optuna
 from powerrun.functions import TrainNN, MarkedDataSet
-from powerrun.models import get_resnet1d_model
+from powerrun.models import get_resnet1d_model, get_angry_bird_model
 from maketarget import BigFatMommyMakesTargetMarkers
 
 import warnings
@@ -28,12 +28,7 @@ if __name__ == '__main__':
                         end_period='2021-03-31 23:59:59'
                         )
 
-    path_filename = "../source_ds/1m/ETHUSDT-1m.csv"
-
-
-
-
-
+    path_filename = "source_ds/1m/ETHUSDT-1m.csv"
 
     print(database.pairs_symbols)
 
@@ -41,27 +36,29 @@ if __name__ == '__main__':
     strategy = LongStrategy
 
     start = time.time()
-    for item in database.pairs_symbols:
-        print('===' * 30)
-        print(item)
-        # Загружаем исходные данные OHLCV
-        df = database.get_pair(item, intervals[0])
-        dataset = MarkedDataSet(path_filename, df, df_priority=True)
-        # Добавляем разметку Signal (значения [1, -1])
-        tr = TrainNN(dataset)
-        tr.epochs = 20
-        tr.tsg_window_length = 40
-        tr.train()
-        df = tr.backtest_test_dataset()
-        # df = BigFatMommyMakesTargetMarkers(window_size=window_size).mark_y(df)
-        # Запускаем бэтестинг, на вход подаем DataFrame [['Open','Close','High','Low','Volume','Signal]]
-        bt = Back(df, strategy, cash=100_000, commission=.002, trade_on_close=False)
-        # Получаем статистику бэктестинга
-        stats = bt.run(size=1000)
-        # Печатаем статистику
-        print(stats)
-        # Выводим графиг бэктестинга (копия сохраняется в корень с именем "Название стратегии.html"
-        bt.plot(plot_volume=True, relative_equity=True)
+    # for item in database.pairs_symbols:
+    print('===' * 30)
+    # print(item)
+    # Загружаем исходные данные OHLCV
+    # df = database.get_pair(item, intervals[0])
+    dataset = MarkedDataSet(path_filename, df, df_priority=False)
+    # Добавляем разметку Signal (значения [1, -1])
+    tr = TrainNN(dataset)
+    tr.tsg_window_length = 40
+    # tr.keras_model = get_angry_bird_model((tr.tsg_window_length))
+    tr.epochs = 20
+
+    tr.train()
+    df = tr.backtest_test_dataset()
+    # df = BigFatMommyMakesTargetMarkers(window_size=window_size).mark_y(df)
+    # Запускаем бэтестинг, на вход подаем DataFrame [['Open','Close','High','Low','Volume','Signal]]
+    bt = Back(df, strategy, cash=100_000, commission=.002, trade_on_close=False)
+    # Получаем статистику бэктестинга
+    stats = bt.run(size=1000)
+    # Печатаем статистику
+    print(stats)
+    # Выводим графиг бэктестинга (копия сохраняется в корень с именем "Название стратегии.html"
+    bt.plot(plot_volume=True, relative_equity=True)
     print('===' * 30, '\nBacktesting done by: ', time.time() - start, '\n====' * 30, '\n')
 
 path_filename ="../source_ds/1m/ETHUSDT-1m.csv"
