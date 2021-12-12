@@ -8,4 +8,4 @@ tr.figshow_base()
 # tr.compile()
 # tr.load_best_weights()
 tr.show_trend_predict()
-tr.check_binary()
+
