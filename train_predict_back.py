@@ -10,7 +10,7 @@ from optimizer import Objective
 
 import optuna
 from powerrun.functions import TrainNN, MarkedDataSet
-
+from powerrun.models import get_resnet1d_model
 from maketarget import BigFatMommyMakesTargetMarkers
 
 import warnings

@@ -3,7 +3,7 @@ from datamodeling import *
 from networks import *
 import tensorflow as tf
 from tensorflow.keras.callbacks import ReduceLROnPlateau
-from models import get_resnet1d_model
+from powerrun.models import get_resnet1d_model
 
 __version__ = 0.0017
 
@@ -245,13 +245,13 @@ class TrainNN:
         rlrs = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=13, min_lr=0.000001)
         callbacks = [rlrs, chkp]
         path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
-        tf.keras.utils.plot_model(self.keras_model,
-                                  to_file=path_filename,
-                                  show_shapes=True,
-                                  show_layer_names=True,
-                                  expand_nested=True,
-                                  dpi=96,
-                                  )
+        # tf.keras.utils.plot_model(self.keras_model,
+        #                           to_file=path_filename,
+        #                           show_shapes=True,
+        #                           show_layer_names=True,
+        #                           expand_nested=True,
+        #                           dpi=96,
+        #                           )
         self.history = self.keras_model.fit(self.mrk_dataset.train_gen,
                                             epochs=self.epochs,
                                             validation_data=self.mrk_dataset.train_gen,
