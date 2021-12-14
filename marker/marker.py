@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from maketarget.mother import BigFatMommyMakesTargetMarkers
 
-__version__ = 0.0004
+__version__ = 0.0005
 
 class Marker():
     def __init__(self, loader: DataLoad):
@@ -335,22 +335,65 @@ class Marker():
             dataset_df.to_csv(path_filename)
         pass
 
+    def create_dataset_df_method_2(self, symbol, timeframe, target_directory='', save_file=True, weight=0.055):
+        self.symbol = symbol
+        self.timeframe = timeframe
+        dataset_df = self.collect_features()
+        dataset_df['Signal'] = self.create_power_trend(weight=weight)
+        current_trend = dataset_df.iloc[-1, -1]
+        trend_length_list: list = []
+        trend_counter = 0
+        for idx in range(dataset_df.shape[0]-1, -1, -1):
+            if dataset_df.iloc[idx, -1] == current_trend:
+                trend_counter += 1
+                trend_length_list.append(trend_counter)
+            else:
+                current_trend = dataset_df.iloc[idx, -1]
+                trend_counter = 0
+                trend_length_list.append(trend_counter)
+        trend_length_list.reverse()
+        dataset_df.insert(len(dataset_df.columns)-1, column="Trend_length", value=trend_length_list )
+
+        uniques, counts = np.unique(dataset_df['Signal'].values, return_counts=True)
+        msg_2 = f"Signal type 2\n"
+        for unq, cnt in zip(uniques, counts):
+            msg_2 += f"Unique: {unq} {cnt}\n"
+        msg = f"Pair: {self.symbol} - {self.timeframe}\n" \
+              f"Dataframe shape: {dataset_df.shape} \n" \
+              f"Trend weight: {weight}\n" \
+              f"Start date: {self.loader.ohlcvbase[f'{self.symbol}-{self.timeframe}'].df.index[0]}\n" \
+              f"End date: {self.loader.ohlcvbase[f'{self.symbol}-{self.timeframe}'].df.index[-1]}\n" \
+              f"{msg_2}"
+
+        print(msg)
+        print(dataset_df.head(5).to_string(), f'\n')
+        if save_file:
+            path_filename = os.path.join(target_directory, self.timeframe, f'{self.symbol}-{self.timeframe}.csv')
+            dataset_df.to_csv(path_filename)
+        pass
+
     def mark_all_loader_df(self, target_directory='', signal_method=1,  window_size=5, weight=0.0275):
         for idx, (key, ohlcv_obj) in enumerate(self.loader.ohlcvbase.items()):
             self.symbol = ohlcv_obj.symbol_name
             self.timeframe = ohlcv_obj.timeframe
+            print(f'Symbol #{idx}')
             if signal_method == 0:
-                print(f'Symbol #{idx}')
                 self.create_dataset_df_method_0(self.symbol,
                                                 timeframe=self.timeframe,
                                                 target_directory=target_directory,
                                                 weight=0.0275)
-            else:
-                print(f'Symbol #{idx}')
+            elif signal_method == 1:
                 self.create_dataset_df_method_1(self.symbol,
                                                 timeframe=self.timeframe,
                                                 target_directory=target_directory,
                                                 window_size=window_size)
+            elif signal_method == 2:
+                self.create_dataset_df_method_2(self.symbol,
+                                                timeframe=self.timeframe,
+                                                target_directory=target_directory,
+                                                weight=0.055)
+            else:
+                assert signal_method > 2, f"Error! unknown method {signal_method}"
 
             pass
 
@@ -363,7 +406,7 @@ if __name__ == "__main__":
                                   end_period='2021-10-31 23:59:59',
                                   )
     mr = Marker(loaded_crypto_data)
-    mr.mark_all_loader_df(target_directory="../source_ds", signal_method=0,  weight=0.055)
+    mr.mark_all_loader_df(target_directory="../source_ds2", signal_method=2,  weight=0.0275)
     # mr.mark_all_loader_df(target_directory="/Users/chekh/Development/Python/paired_trading/source_ds1", signal_method=1, window_size=5)
 
     # mr.create_dataset_df_method_0("ETHUSDT", timeframe="1m", target_directory="../source_ds", weight=0.0275)

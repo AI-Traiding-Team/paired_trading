@@ -1,6 +1,7 @@
 import time
 
 from analyze import DataLoad
+from marker.marker import Marker
 import os
 from backtester import Back
 from backtester.strategies import *
@@ -16,24 +17,29 @@ from maketarget import BigFatMommyMakesTargetMarkers
 import warnings
 warnings.filterwarnings('ignore')
 
+__version__ = 0.0003
+
+
 if __name__ == '__main__':
     intervals = ['1m']
     root_path = os.getcwd()
     source_root_path = os.path.join(root_path, 'source_root')
 
-    # database = DataLoad(pairs_symbols=None,
-    #                     time_intervals=intervals,
-    #                     source_directory=source_root_path,
-    #                     start_period='2021-01-01 00:00:00',
-    #                     end_period='2021-03-31 23:59:59'
-    #                     )
+    loaded_crypto_data = DataLoad(pairs_symbols=None,
+                                  time_intervals=['1m'],
+                                  source_directory=source_root_path,
+                                  start_period='2021-08-01 00:00:00',
+                                  end_period='2021-09-30 23:59:59',
+                                  )
+    mr = Marker(loaded_crypto_data)
+    mr.mark_all_loader_df(target_directory="source_ds", signal_method=0,  weight=0.055)
 
     path_filename = "source_ds/1m/BTCUSDT-1m.csv"
 
     # print(database.pairs_symbols)
 
     window_size = 82
-    strategy = LongShortStrategy
+    strategy = LongStrategy
 
     start = time.time()
     # for item in database.pairs_symbols:
@@ -42,8 +48,8 @@ if __name__ == '__main__':
     dataset = MarkedDataSet(path_filename, df, df_priority=False)
     # Добавляем разметку Signal (значения [1, -1])
     tr = TrainNN(dataset)
-    tr.tsg_window_length = 40
-    tr.epochs = 20
+    tr.tsg_window_length = 82
+    tr.epochs = 75
     tr.train()
     df = tr.backtest_test_dataset()
     # Запускаем бэтестинг, на вход подаем DataFrame [['Open','Close','High','Low','Volume','Signal]]

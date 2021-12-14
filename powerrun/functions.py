@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow.keras.callbacks import ReduceLROnPlateau
 from powerrun.models import get_resnet1d_model
 
-__version__ = 0.0017
+__version__ = 0.0018
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -69,7 +69,6 @@ class MarkedDataSet:
         self.input_shape = None
         self.prepare_data()
         self.x_test_df_backrade = None
-
 
     def get_train_generator(self, x_Train_data, y_Train_data):
         self.train_gen = TSDataGenerator(data=x_Train_data,
@@ -232,6 +231,7 @@ class TrainNN:
         self.mrk_dataset = mrk_dataset
         self.history = None
         self.epochs = 15
+
         self.keras_model = get_resnet1d_model()
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
         self.optimizer_sgd = tf.keras.optimizers.SGD(learning_rate=1e-5,
