@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from maketarget.mother import BigFatMommyMakesTargetMarkers
 
-__version__ = 0.0005
+__version__ = 0.0006
 
 class Marker():
     def __init__(self, loader: DataLoad):
