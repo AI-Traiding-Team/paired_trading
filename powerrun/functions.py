@@ -315,23 +315,21 @@ class TrainNN:
         data_df.loc[data_df["trend"] <= 0.5, "trend"] = 0.0
         data_df.loc[data_df["trend"] > 0.5, "trend"] = 1.0
         data_df["Signal"] = data_df['trend']
-        self.mrk_dataset.test_df_backtrade = data_df
-        self.mrk_dataset.test_df_backtrade.drop(columns=[
-                                                         "trend",
-                                                         "quarter", "month", "weeknum", "weekday", "hour",
-                                                         "minute", "log_close", "log_volume", "diff_close",
-                                                         "log_close_close_shift", "sin_close"] , inplace=True)
+        # self.mrk_dataset.test_df_backtrade = data_df.copy()
+        data_df.drop(columns=[
+                             "trend",
+                             "quarter", "month", "weeknum", "weekday", "hour",
+                             "minute", "log_close", "log_volume", "diff_close",
+                             "log_close_close_shift", "sin_close"], inplace=True)
 
-        self.mrk_dataset.test_df_backtrade.columns = [item.lower().capitalize() for item in data_df.columns]
-        data_df = self.mrk_dataset.test_df_backtrade
-
+        data_df.columns = [item.lower().capitalize() for item in data_df.columns]
 
         print("\nSignal (pred) dataframe data example for backtesting:")
         print(data_df["Signal"].head().to_string(), f"\n")
         uniques, counts = np.unique(data_df["Signal"].values, return_counts=True)
         for unq, cnt in zip(uniques, counts):
             print("Total:", unq, cnt)
-
+        self.mrk_dataset.test_df_backtrade = data_df
         return data_df
 
     def show_trend_predict(self):

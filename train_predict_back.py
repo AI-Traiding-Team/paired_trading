@@ -21,19 +21,19 @@ if __name__ == '__main__':
     root_path = os.getcwd()
     source_root_path = os.path.join(root_path, 'source_root')
 
-    database = DataLoad(pairs_symbols=None,
-                        time_intervals=intervals,
-                        source_directory=source_root_path,
-                        start_period='2021-01-01 00:00:00',
-                        end_period='2021-03-31 23:59:59'
-                        )
+    # database = DataLoad(pairs_symbols=None,
+    #                     time_intervals=intervals,
+    #                     source_directory=source_root_path,
+    #                     start_period='2021-01-01 00:00:00',
+    #                     end_period='2021-03-31 23:59:59'
+    #                     )
 
-    path_filename = "source_ds/1m/ETHUSDT-1m.csv"
+    path_filename = "source_ds/1m/BTCUSDT-1m.csv"
 
-    print(database.pairs_symbols)
+    # print(database.pairs_symbols)
 
-    window_size =41
-    strategy = LongStrategy
+    window_size = 82
+    strategy = LongShortStrategy
 
     start = time.time()
     # for item in database.pairs_symbols:
@@ -54,13 +54,5 @@ if __name__ == '__main__':
     print(stats)
     # Выводим графиг бэктестинга (копия сохраняется в корень с именем "Название стратегии.html"
     bt.plot(plot_volume=True, relative_equity=True)
-    print('===' * 30, '\nBacktesting done by: ', time.time() - start, '\n====' * 30, '\n')
+    print('===' * 30, '\nBacktesting done by: ', time.time() - start, '\n', '====' * 30, '\n')
 
-path_filename ="../source_ds/1m/ETHUSDT-1m.csv"
-dataset = MarkedDataSet(path_filename)
-tr = TrainNN(dataset)
-tr.epochs = 10
-tr.tsg_batch_size = 128
-tr.tsg_window_length = 40
-tr.train()
-test_df = tr.backtest_test_dataset()
