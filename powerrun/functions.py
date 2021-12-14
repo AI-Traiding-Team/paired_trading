@@ -262,6 +262,7 @@ class TrainNN:
                                             )
 
     def compile(self):
+        self.keras_model.summary()
         self.keras_model.compile(optimizer=self.optimizer,
                                  loss="binary_crossentropy",
                                  metrics=["accuracy"],
