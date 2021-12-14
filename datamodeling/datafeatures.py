@@ -370,22 +370,6 @@ class DataFeatures:
         self.y_df = self.y_df.drop(index=self.drop_idxs)
         return self.y_df.copy()
 
-    """ Just copy for backup """
-    # 0 if Close1 - Close2 < 0 и 1 if Close1 - Close2 >= 0 - в одном столбце
-    def create_y_close1_close2_sub_trend_1st_try(self):
-        self.y_df["close"] = self.source_df_1["close"]
-        normalized_df_1 = (self.source_df_1["close"] - self.source_df_1["close"].min()) / (
-                self.source_df_1["close"].max() - self.source_df_1["close"].min())
-        normalized_df_2 = (self.source_df_2["close"] - self.source_df_2["close"].min()) / (
-                self.source_df_2["close"].max() - self.source_df_2["close"].min())
-        temp_df = pd.DataFrame()
-        temp_df["close"] = pd.DataFrame(normalized_df_1 - normalized_df_2)
-        temp_df.loc[temp_df["close"] <= 0, "close"] = 0
-        temp_df.loc[temp_df["close"] > 0, "close"] = 1
-        self.y_df = temp_df.drop(index=self.drop_idxs)
-        return self.y_df.copy()
-
-
     # 0 if Close1 - Close2 < 0 и 1 if Close1 - Close2 >= 0 - в одном столбце
     def create_y_close1_close2_sub_trend(self):
         temp_df = pd.DataFrame()
@@ -403,7 +387,7 @@ class DataFeatures:
         return self.y_df
 
     def create_power_trend(self, weight):
-        pair_symbol = self.pairs_symbols[2]
+        pair_symbol = self.ds_profile.use_symbols_pairs[2]
         timeframe = self.ds_profile.timeframe
         self.source_df_3 = self.ohlcv_base[f"{pair_symbol}-{timeframe}"].df.copy()
         ohlcv_df = self.source_df_3
@@ -500,7 +484,7 @@ class DataFeatures:
         # # temp_df = temp_df.drop(index=self.drop_idxs)
         unique = np.unique(temp_df.iloc[:,], return_counts=True )
         ohe_df = pd.get_dummies(temp_df, dtype=float)
-        self.y_df = ohe
+        self.y_df = ohe_df
         return self.y_df.copy()
 
     # # Предсказание силы движения по модулю (п1 переводим в ohe [1, 2, 3, 4, 5]) - классификация.
@@ -525,17 +509,17 @@ class DataFeatures:
     #     self.y_df = ohe.drop(index=self.drop_idxs)
     #     return self.y_df.copy()
 
-# if __name__ == "main":
-#     loaded_crypto_data = DataLoad(pairs_symbols=None,
-#                                   time_intervals=['15m'],
-#                                   source_directory="../source_root",
-#                                   start_period='2021-09-01 00:00:00',
-#                                   end_period='2021-12-05 23:59:59',
-#
-#                                   )
-#
-#     fd = DataFeatures(loaded_crypto_data)
-#     profile_1 = DSProfile()
-#     x_df = fd.collect_features(profile_1)
+if __name__ == "main":
+    loaded_crypto_data = DataLoad(pairs_symbols=None,
+                                  time_intervals=['15m'],
+                                  source_directory="../source_root",
+                                  start_period='2021-09-01 00:00:00',
+                                  end_period='2021-12-05 23:59:59',
+
+                                  )
+
+    fd = DataFeatures(loaded_crypto_data)
+    profile_1 = DSProfile()
+    x_df = fd.collect_features(profile_1)
 
 

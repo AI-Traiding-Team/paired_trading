@@ -22,5 +22,5 @@ else:
     print ("Успешно созданы нужные директории")
 
 
-source_path = '../source_root/1min'
+source_path = '../source_root/1m'
 destination_path = 'outputs'

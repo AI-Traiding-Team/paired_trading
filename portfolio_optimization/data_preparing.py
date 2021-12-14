@@ -1,5 +1,4 @@
 import os
-import numpy as np
 from matplotlib import pyplot as plt
 from sklearn import preprocessing
 import pandas as pd
@@ -7,7 +6,7 @@ pd.pandas.set_option('display.max_columns', None)
 pd.set_option("expand_frame_repr", False)
 pd.set_option("precision", 2)
 
-from constants import source_path, destination_path
+from portfolio_optimization.constants import source_path, destination_path
 
 
 
@@ -48,6 +47,8 @@ df_norm.plot(figsize=(10, 5))
 plt.legend(tickers)
 plt.title(f'Сравнение нормализованной динамики курсов {len(filenames)-1} монет')
 plt.grid()
+plt.savefig(f'{destination_path}/_imgs/'
+            f'Сравнение нормализованной динамики курсов {len(filenames)-1} монет.png')
 plt.show()
 
 
@@ -55,6 +56,8 @@ df.pct_change().cumsum().plot(figsize=(10, 5))  # посчитаем приро�
 plt.legend(tickers)
 plt.title(f'Сравнение доходностей {len(filenames)-1} монет')
 plt.grid()
+plt.savefig(f'{destination_path}/_imgs/'
+            f'Сравнение доходностей {len(filenames)-1} монет.png')
 plt.show()
 
 
