@@ -46,17 +46,18 @@ if __name__ == '__main__':
         df = database.get_pair(item, intervals[0])
         df = BigFatMommyMakesTargetMarkers(window_size=window_size[item]).mark_y(df)
         # df.dropna(axis=0, inplace=True)
-        ds = BeachBirdSeriesGenerator(df, batch_size=10000, sample_x=sample_x)
+        ds = BeachBirdSeriesGenerator(df, batch_size=512, sample_x=sample_x)
         ds.test_start_index = ds.test_end_index - dataset_test_size
         ds.val_end_index = ds.test_start_index - val_test_gap
         ds.val_start_index = ds.val_end_index - dataset_val_size
         ds.train_end_index = ds.val_start_index - train_val_gap
         model = get_old_model(ds.input_shape)
-        model.compile(optimizer=Adam(learning_rate=5e-05),
+        model.summary()
+        model.compile(optimizer=Adam(learning_rate=5e-06),
               loss='categorical_crossentropy',
               metrics=['categorical_accuracy'])
 
-        history = model.fit(ds.train(), epochs=5,  validation_data=ds.val(), verbose=1)
+        history = model.fit(ds.train(), epochs=10,  validation_data=ds.val(), verbose=1)
 
         pred = model.predict(ds.test())
         ddd = ds.test_prep_dec(pred)
