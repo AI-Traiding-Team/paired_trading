@@ -3,21 +3,29 @@ from datamodeling import *
 from networks import *
 import tensorflow as tf
 from tensorflow.keras.callbacks import ReduceLROnPlateau
-from powerrun.models import get_resnet1d_model
+from powerrun.models import get_resnet1d_and_regression_model
 
-__version__ = 0.0001
+__version__ = 0.0004
 
 import warnings
 warnings.filterwarnings("ignore")
 
 
-def dataset_split_show(data1, data2, data3, symbol):
+def dataset_split_show(close_series, train_df_start_end, val_df_start_end, test_df_start_end, symbol):
+    _temp_1 = close_series
+    _temp_2 = _temp_1.copy()
+    _temp_3 = _temp_1.copy()
+    _temp_1[train_df_start_end[1]:] = 0
+    _temp_2[:val_df_start_end[0]] = 0
+    _temp_2[val_df_start_end[1]:] = 0
+    _temp_3[:test_df_start_end[0]] = 0
+
     plt.figure(figsize=(12, 4))
     ax0 = plt.subplot2grid((4, 4), (0, 0), rowspan=3, colspan=4)
     # df['Close'].plot(ax = ax0, label='all')
-    data1["close"].plot(ax=ax0, label='train')
-    data2["close"].plot(ax=ax0, label='val')
-    data3["close"].plot(ax=ax0, label='test')
+    _temp_1.plot(ax=ax0, label='train')
+    _temp_2.plot(ax=ax0, label='val')
+    _temp_3.plot(ax=ax0, label='test')
     plt.title(f'График изменений цены на {symbol}')
     plt.legend()
     plt.grid()
@@ -27,6 +35,8 @@ def dataset_split_show(data1, data2, data3, symbol):
 
 class MarkedDataSet:
     def __init__(self, path_filename, all_data_df, df_priority = False):
+        self.timeframe = None
+        self.symbol = None
         self.path_filename = path_filename
         self.tsg_window_length = 40
         self.tsg_sampling_rate = 1
@@ -56,7 +66,7 @@ class MarkedDataSet:
         self.val_df = None
         self.test_df = None
         self.features_scaler = None
-        self.targets_scaler = None
+        self.y2_scaler = None
         self.train_df_start_end: list = [0, 0]
         self.val_df_start_end: list = [0, 0]
         self.test_df_start_end: list = [0, 0]
@@ -106,15 +116,29 @@ class MarkedDataSet:
                                         )
         return self.test_gen
 
+    def prepare_output_y1_y2(self, y1_df, y2_df):
+        y1 = y1_df["Signal"].values
+        y1 = np.expand_dims(y1, axis=1)
+        y2 = y2_df["Trend_length"].values
+        y2 = np.expand_dims(y2, axis=1)
+        self.y2_scaler = RobustScaler().fit(y2)
+        y2_scaled = self.y2_scaler.transform(y2)
+        data_y1_y2 = np.hstack((y1, y2_scaled))
+        return data_y1_y2
+
     def prepare_data(self):
         print("\nAll dataframe data example (Signal markup with treshhold 0.0275):")
         print(self.all_data_df.head().to_string())
-        self.features_df = self.all_data_df.iloc[:, :-1]
+        self.features_df = self.all_data_df.iloc[:, :-2]
         print("\nX (features) dataframe data example:")
         print(self.features_df.head().to_string(), f"\n")
         self.y_df = self.all_data_df.iloc[:, -1:]
-        print("\nSignal (true) dataframe data example:")
+        print("\nSignal (True_1) dataframe data example:")
         print(self.y_df.head().to_string(), f"\n")
+        self.y2_df = self.all_data_df.iloc[:, -2:-1]
+        print("\nTrend length in ticks to signal change (True_2) dataframe data example:")
+        print(self.y2_df.head().to_string(), f"\n")
+
         uniques, counts = np.unique(self.y_df.values, return_counts=True)
         for unq, cnt in zip(uniques, counts):
             print("Total:", unq, cnt)
@@ -126,23 +150,26 @@ class MarkedDataSet:
               f"Test start-end and length: {self.test_df_start_end[0]}-{self.test_df_start_end[1]} {self.test_df_start_end[0] - self.test_df_start_end[1]}"
         print(f"{msg}\n")
         self.split_data_df()
-        temp_1 = pd.DataFrame()
-        temp_1["close"] = self.all_data_df["close"].copy()
-        temp_2 = temp_1.copy()
-        temp_3 = temp_1.copy()
-        temp_1[self.train_df_start_end[1]:] = 0
-        temp_2[:self.val_df_start_end[0]] = 0
-        temp_2[self.val_df_start_end[1]:] = 0
-        temp_3[:self.test_df_start_end[0]] = 0
-        symbol = self.path_filename.split("-")[0].split("/")[-1]
-        timeframe = self.path_filename.split("-")[1].split(".")[0]
-        dataset_split_show(temp_1, temp_2, temp_3, f"{symbol}-{timeframe}")
+        _temp_1 = pd.DataFrame()
+        _temp_1 = self.all_data_df["close"].copy()
+        self.symbol = self.path_filename.split("-")[0].split("/")[-1]
+        self.timeframe = self.path_filename.split("-")[1].split(".")[0]
+        dataset_split_show(_temp_1,
+                           self.train_df_start_end,
+                           self.val_df_start_end,
+                           self.test_df_start_end,
+                           f"{self.symbol}-{self.timeframe}"
+                           )
         self.features_scaler = RobustScaler().fit(self.features_df.values)
         x_arr = self.features_scaler.transform(self.features_df.values)
         print("\nCreate arrays with X (features)", x_arr.shape)
-        y_arr = self.y_df.values.reshape(-1, 1)
-        print("\nCreate arrays with Signal (True)", y_arr.shape)
-        self.prepare_datagens(x_arr, y_arr)
+
+        y_outs = self.prepare_output_y1_y2(self.y_df, self.y2_df)
+        # y_arr = self.y_df.values.reshape(-1, 1)
+        print("\nCreate array Signal (True) and Trend length (True)", y_outs.shape)
+        # print("\nCreate array with Trend length (True)", y_outs[1].shape)
+        self.prepare_datagens(x_arr, y_outs)
+
         pass
 
     def prepare_datagens(self, x_arr, y_arr):
@@ -161,7 +188,7 @@ class MarkedDataSet:
             x_Test_gen = self.get_test_generator(x_Test_data, y_Test_data)
             """ Using generator 1 time to have solid data """
             self.x_Test, self.y_Test = self.create_data_from_gen(x_Test_data, y_Test_data)
-            # x_Test_gen = self.get_test_generator(x_Test_data, y_Test_data)
+            x_Test_gen = self.get_test_generator(x_Test_data, y_Test_data)
         msg = f"Created arrays: \nx_Train_data = {x_Train_data.shape}, y_Train_data = {y_Train_data.shape}\n" \
               f"x_Val_data = {x_Val_data.shape}, y_Val_data = {y_Val_data.shape}\n" \
               f"x_Test_data = {x_Test_data.shape}, y_Test_data = {y_Test_data.shape}\n"
@@ -222,17 +249,18 @@ class TrainNN:
     def __init__(self, mrk_dataset: MarkedDataSet):
 
         self.y_Pred = None
+        self.mrk_dataset = mrk_dataset
         self.power_trend = 0.0275
         self.net_name = "resnet1d"
-        self.experiment_name = "ETHUSDT-1m"
-        self.symbol = self.experiment_name.split('-')[0]
-        self.timeframe = self.experiment_name.split('-')[1]
+        self.experiment_name = f"{self.mrk_dataset.symbol}-{self.mrk_dataset.timeframe}"
+        self.symbol = self.mrk_dataset.symbol
+        self.timeframe = self.mrk_dataset.timeframe
         self.power_trends_list = (0.15, 0.075, 0.055, 0.0275)
-        self.mrk_dataset = mrk_dataset
+
         self.history = None
         self.epochs = 15
 
-        self.keras_model = get_resnet1d_model()
+        self.keras_model = get_resnet1d_and_regression_model()
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
         self.optimizer_sgd = tf.keras.optimizers.SGD(learning_rate=1e-5,
                                                      momentum=0.9,
@@ -243,29 +271,44 @@ class TrainNN:
         self.compile()
 
     def train(self):
-        chkp = tf.keras.callbacks.ModelCheckpoint(os.path.join("outputs", f"{self.experiment_name}_{self.net_name}_{self.power_trend}.h5"), monitor='val_accuracy', save_best_only=True)
-        rlrs = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=13, min_lr=0.000001)
-        callbacks = [rlrs, chkp]
-        # path_filename = os.path.join(os.getcwd(), 'outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
-        # tf.keras.utils.plot_model(self.keras_model,
-        #                           to_file=path_filename,
-        #                           show_shapes=True,
-        #                           show_layer_names=True,
-        #                           expand_nested=True,
-        #                           dpi=96,
-        #                           )
-        self.history = self.keras_model.fit(self.mrk_dataset.train_gen,
+        # chkp = tf.keras.callbacks.ModelCheckpoint(os.path.join("outputs", f"{self.experiment_name}_{self.net_name}_{self.power_trend}.h5"), monitor='val_accuracy', save_best_only=True)
+        # rlrs = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=13, min_lr=0.000001)
+        # callbacks = [chkp]
+        path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
+        tf.keras.utils.plot_model(self.keras_model,
+                                  to_file=path_filename,
+                                  show_shapes=True,
+                                  show_layer_names=True,
+                                  expand_nested=True,
+                                  dpi=96,
+                                  )
+        print(self.mrk_dataset.y_Train[0, :].shape)
+        y_Train_1 = self.mrk_dataset.y_Train[:, 0]
+        y_Train_2 = self.mrk_dataset.y_Train[:, 1]
+        y_Val_1 = self.mrk_dataset.y_Val[:, 0]
+        y_Val_2 = self.mrk_dataset.y_Val[:, 1]
+        self.history = self.keras_model.fit(self.mrk_dataset.x_Train,
+                                            [y_Train_1, y_Train_2],
                                             epochs=self.epochs,
-                                            validation_data=self.mrk_dataset.train_gen,
+                                            validation_data=(self.mrk_dataset.x_Val,
+                                                             [y_Val_1, y_Val_2]
+                                                             ),
+                                            batch_size=128,
                                             verbose=1,
-                                            callbacks=callbacks
+                                            # callbacks=callbacks
                                             )
-
+        # self.history = self.keras_model.fit(self.mrk_dataset.train_gen,
+        #                                     epochs=self.epochs,
+        #                                     validation_data=self.mrk_dataset.train_gen,
+        #                                     verbose=1,
+        #                                     # callbacks=callbacks
+        #                                     )
     def compile(self):
         self.keras_model.compile(optimizer=self.optimizer,
-                                 loss="binary_crossentropy",
-                                 metrics=["accuracy"],
-                                 )
+                                loss={'trend_direction': 'binary_crossentropy',
+                                      'ticks_to_change': 'mae'},
+                                metrics={'trend_direction': 'accuracy',
+                                         'ticks_to_change': tf.keras.metrics.RootMeanSquaredError()})
         pass
 
     def get_predict(self):
