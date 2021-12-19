@@ -215,11 +215,11 @@ class Marker():
                                 'minute': temp_df.index.minute,
                                 }
         for col_name in cols_defaults:
-            if col_name == 'weeknum':
-                temp_df[col_name] = temp_df.index.isocalendar().week
-            else:
+            if col_name == 'year':
                 if datetime_funct[col_name].nunique() != 1:
                     temp_df[col_name] = datetime_funct[col_name]
+            else:
+                temp_df[col_name] = datetime_funct[col_name]
         return temp_df
 
     @staticmethod
@@ -248,8 +248,8 @@ class Marker():
     def collect_features(self):
         self.source_df = self.loader.ohlcvbase[f"{self.symbol}-{self.timeframe}"].df.copy()
 
-        # """ Warning! date feature reduced for lowest timeframe """
-        # if timeframe == '1m':
+        """ Warning! date feature reduced for lowest timeframe """
+        # if self.timeframe == '1m':
         #     cols_create = self.cols_create[-2:]
         # else:
         #     cols_create = self.cols_create
@@ -279,6 +279,14 @@ class Marker():
         trend_df = pd.DataFrame()
         trend_df["trend"] = self.calculate_trend(ohlcv_df, weight)
         trend_df.loc[trend_df["trend"] == -1, "trend"] = 0
+        trend_df = trend_df.drop(index=self.drop_idxs)
+        self.y_df = trend_df
+        return self.y_df
+
+    def create_power_trend_tahn(self, weight):
+        ohlcv_df = self.source_df
+        trend_df = pd.DataFrame()
+        trend_df["trend"] = self.calculate_trend(ohlcv_df, weight)
         trend_df = trend_df.drop(index=self.drop_idxs)
         self.y_df = trend_df
         return self.y_df
@@ -339,17 +347,17 @@ class Marker():
         self.symbol = symbol
         self.timeframe = timeframe
         dataset_df = self.collect_features()
-        dataset_df['Signal'] = self.create_power_trend(weight=weight)
+        dataset_df['Signal'] = self.create_power_trend_tahn(weight=weight)
         current_trend = dataset_df.iloc[-1, -1]
         trend_length_list: list = []
-        trend_counter = 0
+        trend_counter = 1
         for idx in range(dataset_df.shape[0]-1, -1, -1):
             if dataset_df.iloc[idx, -1] == current_trend:
-                trend_counter += 1
                 trend_length_list.append(trend_counter)
+                trend_counter += 1
             else:
                 current_trend = dataset_df.iloc[idx, -1]
-                trend_counter = 0
+                trend_counter = 1
                 trend_length_list.append(trend_counter)
         trend_length_list.reverse()
         dataset_df.insert(len(dataset_df.columns)-1, column="Trend_length", value=trend_length_list )

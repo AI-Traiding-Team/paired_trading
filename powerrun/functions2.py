@@ -34,7 +34,8 @@ def dataset_split_show(close_series, train_df_start_end, val_df_start_end, test_
 
 
 class MarkedDataSet:
-    def __init__(self, path_filename, all_data_df, df_priority = False):
+    def __init__(self, path_filename, all_data_df, df_priority=False):
+
         self.timeframe = None
         self.symbol = None
         self.path_filename = path_filename
@@ -59,6 +60,9 @@ class MarkedDataSet:
             self.all_data_df.index = pd.to_datetime(self.all_data_df.index)
         self.features_df = None
         self.y_df = None
+        self.y2_df = None
+        self.y2_scaler = None
+        # self.log_scaler = FunctionTransformer(np.log1p, inverse_func=np.expm1)
         self.train_df_len = None
         self.val_df_len = None
         self.df_test_len = None
@@ -66,7 +70,6 @@ class MarkedDataSet:
         self.val_df = None
         self.test_df = None
         self.features_scaler = None
-        self.y2_scaler = None
         self.train_df_start_end: list = [0, 0]
         self.val_df_start_end: list = [0, 0]
         self.test_df_start_end: list = [0, 0]
@@ -77,7 +80,6 @@ class MarkedDataSet:
         self.y_Test = None
         self.x_Test = None
         self.input_shape = None
-        self.prepare_data()
         self.x_test_df_backrade = None
 
     def get_train_generator(self, x_Train_data, y_Train_data):
@@ -121,8 +123,19 @@ class MarkedDataSet:
         y1 = np.expand_dims(y1, axis=1)
         y2 = y2_df["Trend_length"].values
         y2 = np.expand_dims(y2, axis=1)
+        # y2_scaled = self.log_scaler.fit_transform(y2)
+
         self.y2_scaler = RobustScaler().fit(y2)
         y2_scaled = self.y2_scaler.transform(y2)
+
+
+        # self.y2_scaler = StandardScaler()
+        # self.y2_scaler.fit(y2)
+        # y2_scaled = self.y2_scaler.transform(y2)
+
+        # self.y2_scaler = MinMaxScaler()
+        # self.y2_scaler.fit(y2)
+        # y2_scaled = self.y2_scaler.transform(y2)
         data_y1_y2 = np.hstack((y1, y2_scaled))
         return data_y1_y2
 
@@ -154,6 +167,7 @@ class MarkedDataSet:
         _temp_1 = self.all_data_df["close"].copy()
         self.symbol = self.path_filename.split("-")[0].split("/")[-1]
         self.timeframe = self.path_filename.split("-")[1].split(".")[0]
+
         dataset_split_show(_temp_1,
                            self.train_df_start_end,
                            self.val_df_start_end,
@@ -256,7 +270,7 @@ class TrainNN:
         self.symbol = self.mrk_dataset.symbol
         self.timeframe = self.mrk_dataset.timeframe
         self.power_trends_list = (0.15, 0.075, 0.055, 0.0275)
-
+        self.batch_size = 32
         self.history = None
         self.epochs = 15
 
@@ -271,9 +285,9 @@ class TrainNN:
         self.compile()
 
     def train(self):
-        # chkp = tf.keras.callbacks.ModelCheckpoint(os.path.join("outputs", f"{self.experiment_name}_{self.net_name}_{self.power_trend}.h5"), monitor='val_accuracy', save_best_only=True)
-        # rlrs = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=13, min_lr=0.000001)
-        # callbacks = [chkp]
+        chkp = tf.keras.callbacks.ModelCheckpoint(os.path.join("outputs", f"{self.experiment_name}_{self.net_name}_{self.power_trend}.h5"), monitor='val_trnd_dir_accuracy', save_best_only=True)
+        rlrs = ReduceLROnPlateau(monitor='val_trnd_dir_accuracy', factor=0.2, patience=14, min_lr=0.000001)
+        callbacks = [chkp, rlrs]
         path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
         tf.keras.utils.plot_model(self.keras_model,
                                   to_file=path_filename,
@@ -293,22 +307,25 @@ class TrainNN:
                                             validation_data=(self.mrk_dataset.x_Val,
                                                              [y_Val_1, y_Val_2]
                                                              ),
-                                            batch_size=128,
+                                            batch_size=self.batch_size,
                                             verbose=1,
-                                            # callbacks=callbacks
+                                            callbacks=callbacks
                                             )
-        # self.history = self.keras_model.fit(self.mrk_dataset.train_gen,
-        #                                     epochs=self.epochs,
-        #                                     validation_data=self.mrk_dataset.train_gen,
-        #                                     verbose=1,
-        #                                     # callbacks=callbacks
-        #                                     )
+
     def compile(self):
         self.keras_model.compile(optimizer=self.optimizer,
-                                loss={'trend_direction': 'binary_crossentropy',
-                                      'ticks_to_change': 'mae'},
-                                metrics={'trend_direction': 'accuracy',
-                                         'ticks_to_change': tf.keras.metrics.RootMeanSquaredError()})
+                                 loss={'trnd_dir': 'binary_crossentropy',
+                                       'tcks_2chng': 'mae'
+                                       },
+                                 metrics=['accuracy'],
+                                 # loss = {'trnd_dir': 'binary_crossentropy',
+                                 #         'tcks_2chng': 'mae'
+                                 #         },
+                                 # metrics={'trnd_dir': 'accuracy',
+                                 #          'tcks_2chng': tf.keras.losses.Huber(),
+                                 #          },
+                                 )
+
         pass
 
     def get_predict(self):
@@ -331,18 +348,18 @@ class TrainNN:
         ax1.minorticks_on()
         N = np.arange(0, len(self.history.history["loss"]))
         plt.plot(N, self.history.history["loss"], label="loss")
-        if 'dice_coef' in self.history.history:
-            plt.plot(N, self.history.history["dice_coef"], label="dice_coef")
-        if 'val_dice_coef' in self.history.history:
-            plt.plot(N, self.history.history["val_dice_coef"], label="val_dice_coef")
-        if 'mae' in self.history.history:
-            plt.plot(N, self.history.history["mae"], label="mae")
-        if 'accuracy' in self.history.history:
-            plt.plot(N, self.history.history["accuracy"], label="accuracy")
-        if 'accuracy' in self.history.history:
-            plt.plot(N, self.history.history["val_accuracy"], label="val_accuracy")
-        if 'val_loss' in self.history.history:
-            plt.plot(N, self.history.history["val_loss"], label="val_loss")
+        if 'tcks_2chng_huber_loss' in self.history.history:
+            plt.plot(N, self.history.history["tcks_2chng_huber_loss"], label="tcks_2chng_huber_loss")
+        if 'val_tcks_2chng_huber_loss' in self.history.history:
+            plt.plot(N, self.history.history["val_tcks_2chng_huber_loss"], label="val_tcks_2chng_huber_loss")
+        if 'mae_loss' in self.history.history:
+            plt.plot(N, self.history.history["mae_loss"], label="mae_loss")
+        if 'val_mae_loss' in self.history.history:
+            plt.plot(N, self.history.history["val_mae_loss"], label="val_mae_loss")
+        if 'trnd_dir_accuracy' in self.history.history:
+            plt.plot(N, self.history.history["trnd_dir_accuracy"], label="trnd_dir_accuracy")
+        if 'val_trnd_dir_accuracy' in self.history.history:
+            plt.plot(N, self.history.history["val_trnd_dir_accuracy"], label="val_trnd_dir_accuracy")
         plt.title(f"Training Loss and Accuracy")
         plt.legend()
         plt.show()
@@ -380,21 +397,33 @@ class TrainNN:
         print(f"\nВизуализируем результат")
         data_df = self.mrk_dataset.features_df[
                   self.mrk_dataset.test_df_start_end[0]: self.mrk_dataset.test_df_start_end[
-                                                             1] - self.mrk_dataset.tsg_window_length]
+                                                             1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
         y_df = self.mrk_dataset.y_df[self.mrk_dataset.test_df_start_end[0]: self.mrk_dataset.test_df_start_end[
-                                                                                1] - self.mrk_dataset.tsg_window_length]
+                                                                                1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
+        y2_df = self.mrk_dataset.y2_df[self.mrk_dataset.test_df_start_end[0]: self.mrk_dataset.test_df_start_end[
+                                                                                1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
         trend_pred = self.keras_model.predict(self.mrk_dataset.x_Test)
-        trend_pred = trend_pred.flatten()
-        trend_pred_df = pd.DataFrame(data=trend_pred, columns=["trend"])
+
+        y_Test_pred_1 = trend_pred[0]
+        y_Test_pred_2_unscaled = np.reshape(trend_pred[1], (-1, 1))
+        y_Test_pred_2 = self.mrk_dataset.y2_scaler.inverse_transform(y_Test_pred_2_unscaled)
+
+        # trend_pred = trend_pred.flatten()
+        trend_pred_df = pd.DataFrame(data=y_Test_pred_1, columns=["Trend"])
+        trend_pred_df["Trend_change"] = pd.Series(data=y_Test_pred_2.flatten())
+        trend_pred_df["Trend_change_signal"] = pd.Series(data=y_Test_pred_2.flatten())
+
         # for visualization we use scaling of trend = 1 to data_df["close"].max()
         max_close = data_df["close"].max()
         min_close = data_df["close"].min()
         mean_close = data_df["close"].mean()
-        trend_pred_df.loc[(trend_pred_df["trend"] > 0.5), "trend"] = max_close
+        trend_pred_df.loc[(trend_pred_df["Trend_change_signal"] <= 10), "Trend_change_signal"] = max_close
+        trend_pred_df.loc[(trend_pred_df["Trend_change_signal"] > 10), "Trend_change_signal"] = min_close
+        trend_pred_df.loc[(trend_pred_df["Trend"] > 0.5), "Trend"] = max_close
+        trend_pred_df.loc[(trend_pred_df["Trend"] <= 0.5), "Trend"] = min_close
         y_df.loc[(y_df["Signal"] == 1), "Signal"] = max_close
-        trend_pred_df.loc[(trend_pred_df["trend"] <= 0.5), "trend"] = min_close
         y_df.loc[(y_df["Signal"] == 0), "Signal"] = min_close
-        data_df[f"trend_{weight}"] = y_df["Signal"]
+        data_df[f"Trend_{weight}"] = y_df["Signal"]
 
         col_list = data_df.columns.to_list()
         try:
@@ -405,7 +434,7 @@ class TrainNN:
         fig = plt.figure(figsize=(20, 12))
         ax1 = fig.add_subplot(2, 1,  1)
         ax1.plot(
-                 data_df.index, data_df[f"trend_{weight}"],
+                 data_df.index, data_df[f"Trend_{weight}"],
                  data_df.index, data_df["close"],
                  )
         ax1.set_ylabel(f'True, weight = {weight}', color='r')
@@ -413,7 +442,8 @@ class TrainNN:
         ax2 = fig.add_subplot(2, 1,  2)
         ax2.plot(
                  data_df.index, data_df["close"],
-                 data_df.index, trend_pred_df["trend"]
+                 data_df.index, trend_pred_df["Trend"],
+                 data_df.index, trend_pred_df["Trend_change_signal"]
                  )
         ax2.set_ylabel(f'Pred, weight = {weight}', color='b')
         plt.title(f"Trend with weight: {weight}")

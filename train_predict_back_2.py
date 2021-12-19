@@ -28,17 +28,17 @@ if __name__ == '__main__':
     loaded_crypto_data = DataLoad(pairs_symbols=None,
                                   time_intervals=['1m'],
                                   source_directory=source_root_path,
-                                  start_period='2021-08-01 00:00:00',
-                                  end_period='2021-09-30 23:59:59',
+                                  start_period='2021-07-15 00:00:00',
+                                  end_period='2021-09-15 23:59:59',
                                   )
     mr = Marker(loaded_crypto_data)
-    mr.mark_all_loader_df(target_directory="source_ds2", signal_method=2,  weight=0.055)
+    mr.mark_all_loader_df(target_directory="source_ds2", signal_method=2,  weight=0.0275)
 
     path_filename = "source_ds2/1m/ETHUSDT-1m.csv"
 
     # print(database.pairs_symbols)
 
-    window_size = 82
+    window_size = 41
     strategy = LongStrategy
 
     start = time.time()
@@ -47,18 +47,23 @@ if __name__ == '__main__':
     # Загружаем исходные данные OHLCV
     dataset = MarkedDataSet(path_filename, df, df_priority=False)
     # Добавляем разметку Signal (значения [1, -1])
+    dataset.tsg_window_length = 41
+    dataset.tsg_batch_size = 32
+    dataset.prepare_data()
+
     tr = TrainNN(dataset)
-    tr.tsg_window_length = 82
-    tr.epochs = 75
+    tr.epochs = 50
     tr.train()
-    df = tr.backtest_test_dataset()
-    # Запускаем бэтестинг, на вход подаем DataFrame [['Open','Close','High','Low','Volume','Signal]]
-    bt = Back(df, strategy, cash=100_000, commission=.002, trade_on_close=False)
-    # Получаем статистику бэктестинга
-    stats = bt.run(size=1000)
-    # Печатаем статистику
-    print(stats)
-    # Выводим графиг бэктестинга (копия сохраняется в корень с именем "Название стратегии.html"
-    bt.plot(plot_volume=True, relative_equity=True)
-    print('===' * 30, '\nBacktesting done by: ', time.time() - start, '\n', '====' * 30, '\n')
+    tr.figshow_base()
+    tr.show_trend_predict()
+    # df = tr.backtest_test_dataset()
+    # # Запускаем бэтестинг, на вход подаем DataFrame [['Open','Close','High','Low','Volume','Signal]]
+    # bt = Back(df, strategy, cash=100_000, commission=.002, trade_on_close=False)
+    # # Получаем статистику бэктестинга
+    # stats = bt.run(size=1000)
+    # # Печатаем статистику
+    # print(stats)
+    # # Выводим графиг бэктестинга (копия сохраняется в корень с именем "Название стратегии.html"
+    # bt.plot(plot_volume=True, relative_equity=True)
+    print('===' * 30, '\nBacktesting done by:', f'{time.time() - start}', f'\n{"===" * 30}\n')
 

@@ -1,15 +1,16 @@
-from tensorflow.keras.layers import Dense, Input, Flatten, Conv1D, ReLU, ELU, MaxPool1D, Dropout, Conv2D
+from tensorflow.keras.layers import Dense, Input, Flatten, Conv1D, ReLU, ELU, MaxPool1D, AveragePooling1D, Dropout, \
+    Conv2D, LeakyReLU
 from tensorflow.keras.layers import AveragePooling2D, MaxPooling2D, concatenate
 import tensorflow as tf
 
-__version__ = 0.0003
+__version__ = 0.0007
 
 
 def get_resnet1d_model(
-                       input_shape=(40, 16,),
-                       kernels=32,
-                       stride=4,
-                       ):
+        input_shape=(40, 16,),
+        kernels=32,
+        stride=4,
+):
     def residual_block(x, kernels, stride):
         out = Conv1D(kernels, stride, padding='same')(x)
         out = ReLU()(out)
@@ -33,6 +34,100 @@ def get_resnet1d_model(
     x_out = Dense(1, activation='sigmoid')(x)
     model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
     return model
+
+def get_resnet1d_model_tahn(
+                            input_shape=(40, 16,),
+                            kernels=64,
+                            stride=4,
+                            ):
+
+    def residual_block_tahn(x, kernels, stride):
+        out = Conv1D(kernels, stride, padding='same')(x)
+        out = tf.keras.activations.tanh(out)
+        out = Conv1D(kernels, stride, padding='same')(out)
+        out = tf.keras.layers.add([x, out])
+        out = tf.keras.activations.tanh(out)
+        out = AveragePooling1D(2, 2)(out)
+        return out
+
+    def residual_block_avr(x, kernels, stride, pool=2):
+        out = Conv1D(kernels, stride, padding='same')(x)
+        out = ReLU()(out)
+        out = Conv1D(kernels, stride, padding='same')(out)
+        out = tf.keras.layers.add([x, out])
+        out = ReLU()(out)
+        out = AveragePooling1D(pool, 2)(out)
+        # out = MaxPool1D(4, 2)(out)
+        return out
+
+    def residual_block_max(x, kernels, stride, pool=2):
+        out = Conv1D(kernels, stride, padding='same')(x)
+        out = ReLU()(out)
+        out = Conv1D(kernels, stride, padding='same')(out)
+        out = tf.keras.layers.add([x, out])
+        out = ReLU()(out)
+        out = MaxPool1D(pool, 2)(out)
+        return out
+
+    x_in = Input(shape=input_shape)
+    x = Dense(32, activation="elu")(x_in)
+    x = Conv1D(kernels, stride)(x)
+    x1_1 = residual_block_avr(x, kernels, stride, pool=6)
+    x1_2 = residual_block_avr(x1_1, kernels, stride, pool=5)
+    x1_3 = residual_block_avr(x1_2, kernels, stride, pool=4)
+    x1_4 = residual_block_avr(x1_3, kernels, stride, pool=3)
+    x1_5 = residual_block_avr(x1_4, kernels, stride, pool=2)
+
+    # x2 = residual_block_tahn(x, kernels, stride)
+    # x2 = residual_block_tahn(x2, kernels, stride)
+    # x2 = residual_block_tahn(x2, kernels, stride)
+    # x2 = residual_block_tahn(x2, kernels, stride)
+
+    x = concatenate([x, x1_1, x1_2, x1_3, x1_4, x1_5], axis=-2)
+    x = Flatten()(x)
+    x = Dense(64, activation="relu")(x)
+    x = Dropout(0.35)(x)
+    x = Dense(32, activation="relu")(x)
+    x_out = Dense(2, activation='softmax')(x)
+    model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
+    return model
+
+def get_resnet1d_model_new(
+                            input_shape=(40, 16,),
+                            kernels=64,
+                            stride=4,
+                            ):
+
+    def residual_block_max(x, kernels, stride, pool=2):
+        out = Conv1D(kernels, stride, padding='same')(x)
+        out = ReLU()(out)
+        out = Conv1D(kernels, stride, padding='same')(out)
+        out = tf.keras.layers.add([x, out])
+        out = ReLU()(out)
+        out = MaxPool1D(pool, 2)(out)
+        return out
+
+    x_in = Input(shape=input_shape)
+    x = Dense(kernels, activation="relu")(x_in)
+    x = Conv1D(kernels, stride)(x)
+    x1_1 = residual_block_max(x, kernels, stride, pool=10)
+    x1_2 = residual_block_max(x1_1, kernels, stride, pool=9)
+    x1_3 = residual_block_max(x1_2, kernels, stride, pool=5)
+    x1_4 = residual_block_max(x1_3, kernels, stride, pool=4)
+    x1_5 = residual_block_max(x1_4, kernels, stride, pool=3)
+    x1_6 = residual_block_max(x1_5, kernels, stride, pool=2)
+
+    x = concatenate([x, x1_1, x1_2, x1_3, x1_4, x1_5, x1_6], axis=-2)
+    x = Flatten()(x)
+    x = Dense(kernels*4, activation="relu")(x)
+    x = Dropout(0.35)(x)
+    x = Dense(kernels*2, activation="relu")(x)
+    x = Dropout(0.35)(x)
+    x = Dense(32, activation="relu")(x)
+    x_out = Dense(2, activation='softmax')(x)
+    model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
+    return model
+
 
 
 def get_angry_bird_model(input_shape):
@@ -73,11 +168,12 @@ def get_angry_bird_model(input_shape):
     return tf.keras.models.Model(input_layer, x_out)
 
 
-def get_resnet1d_and_regression_model(
-                                      input_shape=(40, 16,),
-                                      kernels=32,
-                                      stride=4,
-                                     ):
+
+def get_resnet1d_regression(
+                            input_shape=(40, 16,),
+                            kernels=32,
+                            stride=4,
+                            ):
     def residual_block(x, kernels, stride):
         out = Conv1D(kernels, stride, padding='same')(x)
         out = ReLU()(out)
@@ -95,16 +191,67 @@ def get_resnet1d_and_regression_model(
     x = residual_block(x, kernels, stride)
     x = residual_block(x, kernels, stride)
     x = Flatten()(x)
-    x1 = Dense(32, activation="relu")(x)
-    x1 = Dropout(0.35)(x1)
-    x1 = Dense(32, activation="relu")(x1)
-
-    x2 = Dense(32, activation="elu")(x)
-    x2 = Dropout(0.35)(x2)
-    x2 = Dense(32, activation="elu")(x2)
-
-    x_out1 = Dense(1, activation='sigmoid', name="trend_direction")(x1)
-    x_out2 = Dense(1, activation='linear', name='ticks_to_change')(x2)
-
-    model = tf.keras.models.Model(inputs=x_in, outputs=[x_out1, x_out2])
+    x = Dense(32, activation="elu")(x)
+    x = Dropout(0.35)(x)
+    x = Dense(32, activation="elu")(x)
+    x_out = Dense(1, activation='linear')(x)
+    model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
     return model
+
+
+def get_resnet1d_and_regression_model(
+                                      input_shape=(40, 16,),
+                                      kernels=32,
+                                      stride=4,
+                                      ):
+
+    def residual_block(x, kernels, stride):
+        out = Conv1D(kernels, stride, padding='same')(x)
+        out = ReLU()(out)
+        out = Conv1D(kernels, stride, padding='same')(out)
+        out = tf.keras.layers.add([x, out])
+        out = ReLU()(out)
+        out = MaxPool1D(3, 2)(out)
+        return out
+
+    def residual_block_tahn(x, kernels, stride):
+        out = Conv1D(kernels, stride, padding='same')(x)
+        out = tf.keras.activations.tanh(out)
+        out = Conv1D(kernels, stride, padding='same')(out)
+        out = tf.keras.layers.add([x, out])
+        out = tf.keras.activations.tanh(out)
+        out = MaxPool1D(3, 2)(out)
+        return out
+
+    x_in = Input(shape=input_shape)
+
+    x = Dense(units=24)(x_in)
+    x = LeakyReLU()(x)
+    x = Conv1D(kernels, stride)(x)
+    x = residual_block_tahn(x, kernels, stride)
+    x = residual_block_tahn(x, kernels, stride)
+    x = residual_block_tahn(x, kernels, stride)
+    x_base = residual_block_tahn(x, kernels, stride)
+
+    x1 = Flatten()(x_base)
+    x1 = Dense(units=32, activation=tf.keras.activations.tanh)(x1)
+    x1 = Dropout(0.35)(x1)
+    x1 = Dense(units=32, activation=tf.keras.activations.tanh)(x1)
+    x_out1 = Dense(2, activation='softmax', name="trnd_dir")(x1)
+
+    x2 = Dense(units=16)(x_in)
+    x2 = LeakyReLU()(x2)
+    x2 = Conv1D(kernels, stride)(x2)
+    x2 = residual_block_tahn(x2, kernels, stride)
+    x2 = residual_block_tahn(x2, kernels, stride)
+    x2 = residual_block_tahn(x2, kernels, stride)
+    x2_base = residual_block(x2, kernels, stride)
+
+    x2 = Dense(units=32)(x2_base)
+    x2 = ELU()(x2)
+    x2 = Dropout(0.35)(x2)
+    x2 = Dense(32, activation="linear")(x2)
+    x_out2 = Dense(1, activation='linear', name='tcks_2chng')(x2)
+
+    keras_model = tf.keras.models.Model(inputs=x_in, outputs=[x_out1, x_out2])
+    return keras_model
