@@ -13,12 +13,8 @@
 
 # Source data for dataset
 source_root/
-source_ds/1m/
-source_ds/5m/
-source_ds/15m/
-source_ds1/1m/
-source_ds1/5m/
-source_ds1/15m/
+source_ds/
+source_ds1/
 source_ds2/
 
 # Byte-compiled / optimized / DLL files
