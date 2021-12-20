@@ -279,8 +279,8 @@ class TrainNN:
         # self.metric = "categorical_accuracy"
         self.loss = self.dice_cce_loss
         self.metric = self.dice_metric
-        if 'dice' in str(self.loss):
-            self.monitor = f'val_{self.loss}'
+        # if 'dice' in str(self.loss):
+        #     self.monitor = f'val_{self.loss}'
         # self.keras_model = get_old_model(input_shape=self.mrk_dataset.input_shape)
 
         # self.net_name = "resnet1d-new"

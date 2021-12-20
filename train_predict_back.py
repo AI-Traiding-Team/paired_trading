@@ -61,9 +61,9 @@ if __name__ == '__main__':
     # Добавляем разметку Signal (значения [1, -1])
     tr = TrainNN(dataset)
     tr.power_trend = power_trend
-    tr.epochs = 9
-    tr.train()
-    tr.figshow_base()
+    tr.epochs = 20
+    # tr.train()
+    # tr.figshow_base()
     tr.get_predict()
     tr.show_trend_predict()
     df = tr.backtest_test_dataset()
