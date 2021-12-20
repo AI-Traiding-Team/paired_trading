@@ -13,51 +13,21 @@ __version__ = 0.0019
 import warnings
 warnings.filterwarnings("ignore")
 
+def dataset_split_show(close_series, train_df_start_end, val_df_start_end, test_df_start_end, symbol):
+    _temp_1 = close_series
+    _temp_2 = _temp_1.copy()
+    _temp_3 = _temp_1.copy()
+    _temp_1[train_df_start_end[1]:] = 0
+    _temp_2[:val_df_start_end[0]] = 0
+    _temp_2[val_df_start_end[1]:] = 0
+    _temp_3[:test_df_start_end[0]] = 0
 
-# def dice_coef(y_true, y_pred, smooth, thresh):
-#     y_pred = y_pred > thresh
-#     y_true_f = K.flatten(y_true)
-#     y_pred_f = K.flatten(y_pred)
-#     intersection = K.sum(y_true_f * y_pred_f)
-#     return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
-#
-#
-# def dice_loss(smooth, thresh):
-#     def dice(y_true, y_pred):
-#         return -dice_coef(y_true, y_pred, smooth, thresh)
-#     return dice
-
-
-# def DiceLoss(targets, inputs, smooth=1e-6):
-#     # flatten label and prediction tensors
-#     inputs = K.flatten(inputs)
-#     targets = K.flatten(targets)
-#
-#     intersection = K.sum(K.dot(targets, inputs))
-#     dice = (2 * intersection + smooth) / (K.sum(targets) + K.sum(inputs) + smooth)
-#     return 1 - dice
-
-# def DiceCCELoss(targets, inputs, smooth=1e-6):
-#     # flatten label and prediction tensors
-#     inputs = K.flatten(inputs)
-#     targets = K.flatten(targets)
-#
-#     # BCE = tf.keras.losses.BinaryCrossentropy()
-#     cce = tf.keras.losses.CategoricalCrossentropy()
-#     cce_loss = cce(targets, inputs).numpy()
-#     intersection = K.sum(K.dot(targets, inputs))
-#     dice_loss = 1 - (2 * intersection + smooth) / (K.sum(targets) + K.sum(inputs) + smooth)
-#     Dice_CCE = cce_loss + dice_loss
-#     return Dice_CCE
-
-
-def dataset_split_show(data1, data2, data3, symbol):
     plt.figure(figsize=(12, 4))
     ax0 = plt.subplot2grid((4, 4), (0, 0), rowspan=3, colspan=4)
     # df['Close'].plot(ax = ax0, label='all')
-    data1["close"].plot(ax=ax0, label='train')
-    data2["close"].plot(ax=ax0, label='val')
-    data3["close"].plot(ax=ax0, label='test')
+    _temp_1.plot(ax=ax0, label='train')
+    _temp_2.plot(ax=ax0, label='val')
+    _temp_3.plot(ax=ax0, label='test')
     plt.title(f'График изменений цены на {symbol}')
     plt.legend()
     plt.grid()
@@ -170,20 +140,40 @@ class MarkedDataSet:
               f"Test start-end and length: {self.test_df_start_end[0]}-{self.test_df_start_end[1]} {self.test_df_start_end[0] - self.test_df_start_end[1]}"
         print(f"{msg}\n")
         self.split_data_df()
-        temp_1 = pd.DataFrame()
-        temp_1["close"] = self.all_data_df["close"].copy()
-        temp_2 = temp_1.copy()
-        temp_3 = temp_1.copy()
-        temp_1[self.train_df_start_end[1]:] = 0
-        temp_2[:self.val_df_start_end[0]] = 0
-        temp_2[self.val_df_start_end[1]:] = 0
-        temp_3[:self.test_df_start_end[0]] = 0
+        _temp_1 = pd.DataFrame()
+        _temp_1 = self.all_data_df["close"].copy()
         self.symbol = self.path_filename.split("-")[0].split("/")[-1]
         self.timeframe = self.path_filename.split("-")[1].split(".")[0]
+
         if self.verbose:
-            dataset_split_show(temp_1, temp_2, temp_3, f"{self.symbol}-{self.timeframe}")
-        self.features_scaler = RobustScaler().fit(self.features_df.values)
-        x_arr = self.features_scaler.transform(self.features_df.values)
+            dataset_split_show(_temp_1,
+                               self.train_df_start_end,
+                               self.val_df_start_end,
+                               self.test_df_start_end,
+                               f"{self.symbol}-{self.timeframe}"
+                               )
+        datetime_ohe_flag = False
+        de_columns_names = list()
+        main_columns_names = list()
+        for column_name in self.features_df.columns:
+            if column_name.startswith("de_"):
+                de_columns_names.append(column_name)
+                datetime_ohe_flag = True
+            else:
+                main_columns_names.append(column_name)
+        if datetime_ohe_flag:
+            de_df = self.features_df[[col_name for col_name in de_columns_names]].copy()
+            main_df = self.features_df[[col_name for col_name in main_columns_names]].copy()
+            # """ Warning! Now is MinMaxScaler for this dataset """
+            # self.features_scaler = MinMaxScaler()
+            # self.features_scaler.fit(main_df.values)
+            self.features_scaler = RobustScaler().fit(main_df.values)
+            temp_arr = de_df.values
+            x_arr = self.features_scaler.transform(main_df.values)
+            x_arr = np.concatenate((temp_arr, x_arr), axis=1)
+        else:
+            self.features_scaler = RobustScaler().fit(self.features_df.values)
+            x_arr = self.features_scaler.transform(self.features_df.values)
         print("\nCreate arrays with X (features)", x_arr.shape)
         y_arr = pd.get_dummies(self.y_df["Signal"], dtype=float).values
         # y_arr = self.y_df.values.reshape(-1, 1)
@@ -273,20 +263,37 @@ class TrainNN:
         self.mrk_dataset = mrk_dataset
         self.y_Pred = None
         self.power_trend = 0.0275
-        self.net_name = "resnet1d_new"
         self.experiment_name = f"{self.mrk_dataset.symbol}-{self.mrk_dataset.timeframe}"
         self.symbol = self.mrk_dataset.symbol
         self.timeframe = self.mrk_dataset.timeframe
         self.power_trends_list = (0.15, 0.075, 0.055, 0.0275)
-        self.dice_loss = None
+        self.dice_metric = DiceCoefficient()
+        self.dice_cce_loss = DiceCCELoss()
         self.history = None
         self.epochs = 15
         """ Use it only if not using TimeSeries Generator"""
         self.batch_size = None
+
+        self.monitor = "val_loss"
+        # self.loss = "categorical_crossentropy"
+        # self.metric = "categorical_accuracy"
+        self.loss = self.dice_cce_loss
+        self.metric = self.dice_metric
+        if 'dice' in str(self.loss):
+            self.monitor = f'val_{self.loss}'
         # self.keras_model = get_old_model(input_shape=self.mrk_dataset.input_shape)
 
-        self.keras_model = get_resnet1d_model_new(input_shape=self.mrk_dataset.input_shape, kernels=64)
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
+        # self.net_name = "resnet1d-new"
+        # self.keras_model = get_resnet1d_model_new(input_shape=self.mrk_dataset.input_shape, kernels=64)
+
+        self.net_name = "unet1d"
+        self.keras_model = get_unet1d(input_shape=self.mrk_dataset.input_shape, num_classes=2,  kernels=64)
+
+        # self.net_name = "resnet50v2"
+        # self.keras_model = get_resnet50v2_classification_model(input_shape=self.mrk_dataset.input_shape,
+        #                                                        kernels=64
+        #                                                        )
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5)
         # self.optimizer = tf.keras.optimizers.SGD(learning_rate=1e-5,
         #                                          momentum=0.9,
         #                                          nesterov=True,
@@ -297,25 +304,21 @@ class TrainNN:
 
     def compile(self):
         self.keras_model.summary()
-        self.dice_metric = DiceCoefficient()
-        self.dice_cce_loss = DiceCCELoss()
         self.keras_model.compile(optimizer=self.optimizer,
-                                 loss=self.dice_cce_loss,
-                                 metrics=[self.dice_metric],
+                                 loss=self.loss,
+                                 metrics=[self.metric],
                                  )
-        # self.keras_model.compile(optimizer=self.optimizer,
-        #                          loss="categorical_crossentropy",
-        #                          metrics=["categorical_accuracy"],
-        #                          )
-        # self.keras_model.compile(optimizer=self.optimizer,
-        #                          loss="binary_crossentropy",
-        #                          metrics=["accuracy"],
-        #                          )
         pass
 
     def train(self):
-        chkp = tf.keras.callbacks.ModelCheckpoint(os.path.join("outputs", f"{self.experiment_name}_{self.net_name}_{self.power_trend}.h5"), monitor='val_dice_cce_loss', save_best_only=True)
-        rlrs = ReduceLROnPlateau(monitor='val_dice_cce_loss', factor=0.2, patience=20, min_lr=0.000001)
+        chkp = tf.keras.callbacks.ModelCheckpoint(os.path.join("outputs",
+                                                               f"{self.experiment_name}_{self.net_name}_{self.power_trend}.h5"
+                                                               ),
+                                                  mode='min',
+                                                  monitor=self.monitor,
+                                                  save_best_only=True
+                                                  )
+        rlrs = ReduceLROnPlateau(monitor=self.monitor, factor=0.2, patience=20, min_lr=0.000001)
         callbacks = [rlrs, chkp]
         path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
         tf.keras.utils.plot_model(self.keras_model,
@@ -332,17 +335,16 @@ class TrainNN:
                                             callbacks=callbacks
                                             )
 
-    def get_predict(self):
-        path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}.h5")
-        self.keras_model = tf.keras.models.load_model(path_filename)
-        print(self.mrk_dataset.x_Test)
-        self.y_Pred = self.keras_model.predict(self.mrk_dataset.x_Test)
-        return self.y_Pred
-
     def load_best_weights(self):
         path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}_{self.power_trend}.h5")
         self.keras_model.load_weights(path_filename)
         pass
+
+    def get_predict(self):
+        self.compile()
+        self.load_best_weights()
+        self.y_Pred = self.keras_model.predict(self.mrk_dataset.x_Test)
+        return self.y_Pred
 
     def figshow_base(self):
         fig = plt.figure(figsize=(24, 7*2))
@@ -373,6 +375,7 @@ class TrainNN:
             plt.plot(N, self.history.history["val_accuracy"], label="val_accuracy")
         plt.title(f"Training Dice CCE Loss and Dice Metric")
         plt.legend()
+
         ax2 = fig.add_subplot(1, 2, 2)
         ax2.set_axisbelow(True)
         ax2.minorticks_on()
@@ -390,22 +393,22 @@ class TrainNN:
         pass
 
     def backtest_test_dataset(self):
+        main_columns_names = ["open", "high", "low", "close", "volume", "Signal"]
         print("Creating backtesting set")
         data_df = self.mrk_dataset.features_df[
                   self.mrk_dataset.test_df_start_end[0]: self.mrk_dataset.test_df_start_end[
                                                              1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
-        trend_pred = self.keras_model.predict(self.mrk_dataset.x_Test)
+
+        # trend_pred = self.keras_model.predict(self.mrk_dataset.x_Test)
+        trend_pred = self.get_predict()
         # data_df['trend'] = trend_pred.flatten()
         data_df['trend'] = np.argmax(trend_pred, axis=1)
         data_df.loc[data_df["trend"] <= 0.5, "trend"] = -1.0
         data_df.loc[data_df["trend"] > 0.5, "trend"] = 1.0
         data_df["Signal"] = data_df['trend']
         # self.mrk_dataset.test_df_backtrade = data_df.copy()
-        data_df.drop(columns=[
-                             "trend",
-                             "quarter", "month", "weeknum", "weekday", "hour",
-                             "minute", "log_close", "log_volume", "diff_close",
-                             "log_close_close_shift", "sin_close"], inplace=True)
+
+        data_df = data_df[[col_name for col_name in main_columns_names]].copy()
 
         data_df.columns = [item.lower().capitalize() for item in data_df.columns]
 
@@ -425,8 +428,8 @@ class TrainNN:
                                                              1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
         y_df = self.mrk_dataset.y_df[self.mrk_dataset.test_df_start_end[0]: self.mrk_dataset.test_df_start_end[
                                                                                 1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
-        # trend_pred = self.get_predict()
-        trend_pred = self.keras_model.predict(self.mrk_dataset.x_Test)
+        trend_pred = self.get_predict()
+        # trend_pred = self.keras_model.predict(self.mrk_dataset.x_Test)
         trend_pred = np.argmax(trend_pred,  axis=1)
 
         # trend_pred = trend_pred.flatten()

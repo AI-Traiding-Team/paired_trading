@@ -1,6 +1,6 @@
 from functions import *
 
-path_filename ="../source_ds/1m/ETHUSDT-1m.csv"
+path_filename = "../source_ds0/1m/ETHUSDT-1m.csv"
 dataset = MarkedDataSet(path_filename, None, df_priority=False)
 tr = TrainNN(dataset, )
 tr.epochs = 10

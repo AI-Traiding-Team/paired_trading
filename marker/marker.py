@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from maketarget.mother import BigFatMommyMakesTargetMarkers
 
-__version__ = 0.0006
+__version__ = 0.0007
 
 class Marker():
     def __init__(self, loader: DataLoad):
@@ -25,8 +25,9 @@ class Marker():
         self.symbol = None
         self.timeframe = None
         self.y_df = None
+        self.clear_na_flag = None
+        self.drop_idxs = None
         pass
-
 
     @staticmethod
     def calculate_trend(input_df: pd.DataFrame,
@@ -240,10 +241,37 @@ class Marker():
             cols_create:        columns to create from datetime
 
         Returns:
-
+            object:     pd.Dataframe with columns with divided datetime
         """
         date_df = Marker.split_datetime_data(input_df.index, cols_create)
         return date_df
+
+    @staticmethod
+    def get_feature_datetime_ohe(input_df,
+                                 cols_create=('year',
+                                              'quarter',
+                                              'month',
+                                              'weeknum',
+                                              'weekday',
+                                              'hour',
+                                              'minute'
+                                              )
+                                 ) -> pd.DataFrame:
+        """
+        Args:
+            input_df (pd.Dataframe):    dataframe
+            cols_create (list):       default columns names for encoding
+
+        Returns:
+            object:     pd.Dataframe with dummy encoded datetimeindex columns with prefix 'de_'
+        """
+        de_df = Marker.split_datetime_data(input_df.index, cols_create)
+
+        cols_names = de_df.columns
+        de_df = pd.get_dummies(de_df, columns=cols_names, drop_first=False)
+        for col in de_df.columns:
+            de_df.rename(columns={col: f'de_{col}'}, inplace=True)
+        return de_df
 
     def collect_features(self):
         self.source_df = self.loader.ohlcvbase[f"{self.symbol}-{self.timeframe}"].df.copy()
@@ -253,7 +281,39 @@ class Marker():
         #     cols_create = self.cols_create[-2:]
         # else:
         #     cols_create = self.cols_create
-        features_df = self.get_feature_datetime(self.source_df, cols_create=self.cols_create)
+        features_df = self.get_feature_datetime(self.source_df,
+                                                self.cols_create
+                                                )
+
+        features_df["open"] = self.source_df["open"].copy()
+        features_df["high"] = self.source_df["high"].copy()
+        features_df["low"] = self.source_df["low"].copy()
+        features_df["close"] = self.source_df["close"].copy()
+        features_df["volume"] = self.source_df["volume"].copy()
+        features_df["log_close"] = np.log(self.source_df["close"])
+        features_df["log_volume"] = np.log(self.source_df["volume"])
+        features_df["diff_close"] = self.source_df["close"].diff()
+
+        """ Warning! NA must be cleared in final dataframe after shift """
+        self.clear_na_flag = True
+        shift_df = self.source_df["close"].shift(1)
+        features_df["log_close_close_shift"] = self.source_df["close"]/shift_df
+        features_df["sin_close"] = np.sin(self.source_df['close'])
+        if self.clear_na_flag:
+            self.drop_idxs = features_df.loc[pd.isnull(features_df).any(1), :].index.values
+            features_df = features_df.drop(index=self.drop_idxs)
+        self.features_df = features_df.copy()
+        return self.features_df
+
+    def collect_features_1(self):
+        self.source_df = self.loader.ohlcvbase[f"{self.symbol}-{self.timeframe}"].df.copy()
+
+        """ Warning! date feature reduced for lowest timeframe """
+        if self.timeframe == '1m':
+            cols_create = self.cols_create[-5:]
+        else:
+            cols_create = self.cols_create
+        features_df = self.get_feature_datetime_ohe(self.source_df, cols_create)
         features_df["open"] = self.source_df["open"].copy()
         features_df["high"] = self.source_df["high"].copy()
         features_df["low"] = self.source_df["low"].copy()
@@ -380,6 +440,29 @@ class Marker():
             dataset_df.to_csv(path_filename)
         pass
 
+    def create_dataset_df_method_3(self, symbol, timeframe, target_directory='', save_file=True, weight=0.055):
+        self.symbol = symbol
+        self.timeframe = timeframe
+        dataset_df = self.collect_features_1()
+        dataset_df['Signal'] = self.create_power_trend(weight=weight)
+        uniques, counts = np.unique(dataset_df['Signal'].values, return_counts=True)
+        msg_2 = f"Signal type 2\n"
+        for unq, cnt in zip(uniques, counts):
+            msg_2 += f"Unique: {unq} {cnt}\n"
+        msg = f"Pair: {self.symbol} - {self.timeframe}\n" \
+              f"Dataframe shape: {dataset_df.shape} \n" \
+              f"Trend weight: {weight}\n" \
+              f"Start date: {self.loader.ohlcvbase[f'{self.symbol}-{self.timeframe}'].df.index[0]}\n" \
+              f"End date: {self.loader.ohlcvbase[f'{self.symbol}-{self.timeframe}'].df.index[-1]}\n" \
+              f"{msg_2}"
+
+        print(msg)
+        print(dataset_df.head(5).to_string(), f'\n')
+        if save_file:
+            path_filename = os.path.join(target_directory, self.timeframe, f'{self.symbol}-{self.timeframe}.csv')
+            dataset_df.to_csv(path_filename)
+        pass
+
     def mark_all_loader_df(self, target_directory='', signal_method=1,  window_size=5, weight=0.0275):
         for idx, (key, ohlcv_obj) in enumerate(self.loader.ohlcvbase.items()):
             self.symbol = ohlcv_obj.symbol_name
@@ -399,7 +482,12 @@ class Marker():
                 self.create_dataset_df_method_2(self.symbol,
                                                 timeframe=self.timeframe,
                                                 target_directory=target_directory,
-                                                weight=0.055)
+                                                weight=0.0275)
+            elif signal_method == 3:
+                self.create_dataset_df_method_3(self.symbol,
+                                                timeframe=self.timeframe,
+                                                target_directory=target_directory,
+                                                weight=0.0275)
             else:
                 assert signal_method > 2, f"Error! unknown method {signal_method}"
 
@@ -416,6 +504,5 @@ if __name__ == "__main__":
     mr = Marker(loaded_crypto_data)
     mr.mark_all_loader_df(target_directory="../source_ds2", signal_method=2,  weight=0.0275)
     # mr.mark_all_loader_df(target_directory="/Users/chekh/Development/Python/paired_trading/source_ds1", signal_method=1, window_size=5)
-
     # mr.create_dataset_df_method_0("ETHUSDT", timeframe="1m", target_directory="../source_ds", weight=0.0275)
     # mr.create_dataset_df_method_1("ETHUSDT", timeframe="1m", target_directory="../source_ds1", window_size = 5)

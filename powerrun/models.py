@@ -1,16 +1,50 @@
 from tensorflow.keras.layers import Dense, Input, Flatten, Conv1D, ReLU, ELU, MaxPool1D, AveragePooling1D, Dropout, \
-    Conv2D, LeakyReLU
-from tensorflow.keras.layers import AveragePooling2D, MaxPooling2D, concatenate
+    Conv2D, LeakyReLU, Reshape, BatchNormalization, Activation, Conv2DTranspose, Conv1DTranspose, Conv1D
+from tensorflow.keras.layers import AveragePooling2D, MaxPooling2D, MaxPooling1D, concatenate, GlobalAveragePooling2D, \
+    GlobalAveragePooling1D
 import tensorflow as tf
 
-__version__ = 0.0007
+__version__ = 0.00011
+
+
+def get_resnet50v2_classification_model(input_shape=(40, 16, 1),
+                                        kernels=64,
+                                        num_classes=2,
+                                        ):
+
+    input_shape = (*input_shape, 1)
+    new_in = Input(shape=input_shape)
+    # heading = Reshape((int(input_shape[0]/2), input_shape[1]*2, 1,))(new_in)
+
+    base_model = tf.keras.applications.ResNet50V2(include_top=False,
+                                                  weights=None,
+                                                  input_tensor=None,
+                                                  # input_shape=(int(input_shape[0]/2), input_shape[1]*2, 1,),
+                                                  input_shape=input_shape,
+                                                  pooling=None,
+                                                  classes=num_classes,
+                                                  # **kwargs,
+                                                  )
+    base_model.layers.pop(0)
+    base_model.trainable = True
+    # base_output = base_model(heading)
+    base_output = base_model(new_in)
+    x = GlobalAveragePooling2D()(base_output)
+    x = Dense(kernels*4, activation='relu')(x)
+    x = Dropout(0.5)(x)
+    x = Dense(kernels*2, activation='relu')(x)
+    x = Dropout(0.35)(x)
+    x = Dense(int(kernels/2), activation='relu')(x)
+    x_out = Dense(num_classes, activation='softmax')(x)
+    new_model = tf.keras.models.Model(inputs=new_in, outputs=x_out)
+    return new_model
 
 
 def get_resnet1d_model(
-        input_shape=(40, 16,),
-        kernels=32,
-        stride=4,
-):
+                       input_shape=(40, 16,),
+                       kernels=32,
+                       stride=4
+                       ):
     def residual_block(x, kernels, stride):
         out = Conv1D(kernels, stride, padding='same')(x)
         out = ReLU()(out)
@@ -97,6 +131,7 @@ def get_resnet1d_model_new(
                             kernels=64,
                             stride=4,
                             ):
+    # tf.keras.backend.set_floatx('float64')
 
     def residual_block_max(x, kernels, stride, pool=2):
         out = Conv1D(kernels, stride, padding='same')(x)
@@ -254,4 +289,171 @@ def get_resnet1d_and_regression_model(
     x_out2 = Dense(1, activation='linear', name='tcks_2chng')(x2)
 
     keras_model = tf.keras.models.Model(inputs=x_in, outputs=[x_out1, x_out2])
+    return keras_model
+
+
+def get_unet1d(input_shape=(88, 120, 1),
+               kernels=64,
+               num_classes=2,
+               ):
+
+    x_in = Input(input_shape)  # Создаем входной слой с размерностью input_shape
+
+    # Block 1
+    x = Conv1D(kernels, 3, padding='same', name='block1_conv1')(x_in)  # Добавляем Conv2D-слой с 64-нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = Conv1D(kernels, 3, padding='same', name='block1_conv2')(x)  # Добавляем Conv2D-слой с 64-нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    block_1_out = Activation('relu')(x)  # Добавляем слой Activation и запоминаем в переменной block_1_out
+
+    x = MaxPooling1D()(block_1_out)  # Добавляем слой MaxPooling2D
+
+    # Block 2
+    x = Conv1D(kernels*2, 3, padding='same', name='block2_conv1')(x)  # Добавляем Conv2D-слой с 128-нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = Conv1D(kernels*2, 3, padding='same', name='block2_conv2')(x)  # Добавляем Conv2D-слой с 128-нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    block_2_out = Activation('relu')(x)  # Добавляем слой Activation и запоминаем в переменной block_2_out
+
+    x = MaxPooling1D()(block_2_out)  # Добавляем слой MaxPooling2D
+
+    # Block 3
+    x = Conv1D(kernels*4, 3, padding='same', name='block3_conv1')(x)  # Добавляем Conv2D-слой с 256-нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = Conv1D(kernels*4, 3, padding='same', name='block3_conv2')(x)  # Добавляем Conv2D-слой с 256-нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = Conv1D(kernels*4, 3, padding='same', name='block3_conv3')(x)  # Добавляем Conv2D-слой с 256-нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    block_3_out = Activation('relu')(x)  # Добавляем слой Activation и запоминаем в переменной block_3_out
+
+    x = block_3_out  # Добавляем слой MaxPooling2D
+
+    # UP 3
+    x = Conv1DTranspose(kernels*2, 2, strides=2, padding='same')(
+        x)  # Добавляем слой Conv2DTranspose с 128 нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = concatenate([x, block_2_out])  # Объединем текущий слой со слоем block_2_out
+    x = Conv1D(kernels*2, 3, padding='same')(x)  # Добавляем слой Conv2D с 128 нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = Conv1D(kernels*2, 3, padding='same')(x)  # Добавляем слой Conv2D с 128 нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    # UP 4
+    x = Conv1DTranspose(kernels, 2, strides=2, padding='same')(x)  # Добавляем слой Conv2DTranspose с 64 нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = concatenate([x, block_1_out])  # Объединем текущий слой со слоем block_1_out
+    x = Conv1D(kernels, 3, padding='same')(x)  # Добавляем слой Conv2D с 64 нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = Conv1D(kernels, 3, padding='same')(x)  # Добавляем слой Conv2D с 64 нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = GlobalAveragePooling1D()(x)
+    x = Dense(kernels*8, activation='relu')(x)
+    x = Dropout(0.5)(x)
+    x = Dense(kernels*2, activation='relu')(x)
+    x = Dropout(0.15)(x)
+    x = Dense(int(kernels/2), activation='relu')(x)
+
+    x_out = Dense(2, activation='softmax')(x)
+
+    keras_model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
+
+    return keras_model
+
+
+def get_unet2d (input_shape=(88, 120, 3),
+                kernels=64,
+                num_classes=2,
+                ):
+
+    x_in = Input(input_shape)  # Создаем входной слой с размерностью input_shape
+
+    # Block 1
+    x = Conv2D(kernels, (3, 3), padding='same', name='block1_conv1')(x_in)  # Добавляем Conv2D-слой с 64-нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = Conv2D(kernels, (3, 3), padding='same', name='block1_conv2')(x)  # Добавляем Conv2D-слой с 64-нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    block_1_out = Activation('relu')(x)  # Добавляем слой Activation и запоминаем в переменной block_1_out
+
+    x = MaxPooling2D()(block_1_out)  # Добавляем слой MaxPooling2D
+
+    # Block 2
+    x = Conv2D(kernels*2, (3, 3), padding='same', name='block2_conv1')(x)  # Добавляем Conv2D-слой с 128-нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = Conv2D(kernels*2, (3, 3), padding='same', name='block2_conv2')(x)  # Добавляем Conv2D-слой с 128-нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    block_2_out = Activation('relu')(x)  # Добавляем слой Activation и запоминаем в переменной block_2_out
+
+    x = MaxPooling2D()(block_2_out)  # Добавляем слой MaxPooling2D
+
+    # Block 3
+    x = Conv2D(kernels*4, (3, 3), padding='same', name='block3_conv1')(x)  # Добавляем Conv2D-слой с 256-нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = Conv2D(kernels*4, (3, 3), padding='same', name='block3_conv2')(x)  # Добавляем Conv2D-слой с 256-нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = Conv2D(kernels*4, (3, 3), padding='same', name='block3_conv3')(x)  # Добавляем Conv2D-слой с 256-нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    block_3_out = Activation('relu')(x)  # Добавляем слой Activation и запоминаем в переменной block_3_out
+
+    x = block_3_out  # Добавляем слой MaxPooling2D
+
+    # UP 3
+    x = Conv2DTranspose(kernels*2, (2, 2), strides=(2, 2), padding='same')(
+        x)  # Добавляем слой Conv2DTranspose с 128 нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = concatenate([x, block_2_out])  # Объединем текущий слой со слоем block_2_out
+    x = Conv2D(kernels*2, (3, 3), padding='same')(x)  # Добавляем слой Conv2D с 128 нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = Conv2D(kernels*2, (3, 3), padding='same')(x)  # Добавляем слой Conv2D с 128 нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    # UP 4
+    x = Conv2DTranspose(kernels, (2, 2), strides=(2, 2), padding='same')(x)  # Добавляем слой Conv2DTranspose с 64 нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = concatenate([x, block_1_out])  # Объединем текущий слой со слоем block_1_out
+    x = Conv2D(kernels, (3, 3), padding='same')(x)  # Добавляем слой Conv2D с 64 нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x = Conv2D(kernels, (3, 3), padding='same')(x)  # Добавляем слой Conv2D с 64 нейронами
+    x = BatchNormalization()(x)  # Добавляем слой BatchNormalization
+    x = Activation('relu')(x)  # Добавляем слой Activation
+
+    x_out = Conv2D(num_classes, (3, 3), activation='softmax', padding='same')(x)  # Добавляем Conv2D-Слой с softmax-активацией на num_classes-нейронов
+
+    keras_model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
+
     return keras_model
