@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from maketarget.mother import BigFatMommyMakesTargetMarkers
 
-__version__ = 0.0007
+__version__ = 0.0010
 
 class Marker():
     def __init__(self, loader: DataLoad):
@@ -193,7 +193,7 @@ class Marker():
 
     @staticmethod
     def split_datetime_data(datetime_index: pd.DatetimeIndex,
-                            cols_defaults: list
+                            cols_defaults: tuple
                             ) -> pd.DataFrame:
         """
         Args:
@@ -225,14 +225,14 @@ class Marker():
 
     @staticmethod
     def get_feature_datetime(input_df,
-                             cols_create=('year',
-                                          'quarter',
-                                          'month',
-                                          'weeknum',
-                                          'weekday',
-                                          'hour',
-                                          'minute'
-                                          )
+                             cols_create: tuple = ('year',
+                                                   'quarter',
+                                                   'month',
+                                                   'weeknum',
+                                                   'weekday',
+                                                   'hour',
+                                                   'minute'
+                                                   )
                              ) -> pd.DataFrame:
         """
 
@@ -248,14 +248,14 @@ class Marker():
 
     @staticmethod
     def get_feature_datetime_ohe(input_df,
-                                 cols_create=('year',
-                                              'quarter',
-                                              'month',
-                                              'weeknum',
-                                              'weekday',
-                                              'hour',
-                                              'minute'
-                                              )
+                                 cols_create: tuple = ('year',
+                                                       'quarter',
+                                                       'month',
+                                                       'weeknum',
+                                                       'weekday',
+                                                       'hour',
+                                                       'minute'
+                                                       )
                                  ) -> pd.DataFrame:
         """
         Args:
@@ -293,6 +293,10 @@ class Marker():
         features_df["log_close"] = np.log(self.source_df["close"])
         features_df["log_volume"] = np.log(self.source_df["volume"])
         features_df["diff_close"] = self.source_df["close"].diff()
+        features_df = features_df.replace([np.inf, -np.inf], np.nan)
+        # count = np.isinf(features_df).values.sum()
+        # print("It contains " + str(count) + " infinite values")
+        features_df = features_df.fillna(features_df.rolling(6, min_periods=1).mean())
 
         """ Warning! NA must be cleared in final dataframe after shift """
         self.clear_na_flag = True
@@ -313,7 +317,7 @@ class Marker():
             cols_create = self.cols_create[-5:]
         else:
             cols_create = self.cols_create
-        features_df = self.get_feature_datetime_ohe(self.source_df, cols_create)
+        features_df = self.get_feature_datetime_ohe(self.source_df, cols_create=cols_create)
         features_df["open"] = self.source_df["open"].copy()
         features_df["high"] = self.source_df["high"].copy()
         features_df["low"] = self.source_df["low"].copy()
@@ -322,6 +326,37 @@ class Marker():
         features_df["log_close"] = np.log(self.source_df["close"])
         features_df["log_volume"] = np.log(self.source_df["volume"])
         features_df["diff_close"] = self.source_df["close"].diff()
+        features_df = features_df.replace([np.inf, -np.inf], np.nan)
+        # count = np.isinf(features_df).values.sum()
+        # print("It contains " + str(count) + " infinite values")
+        features_df = features_df.fillna(features_df.rolling(6, min_periods=1).mean())
+
+        """ Warning! NA must be cleared in final dataframe after shift """
+        self.clear_na_flag = True
+        shift_df = self.source_df["close"].shift(1)
+        features_df["log_close_close_shift"] = self.source_df["close"]/shift_df
+        features_df["sin_close"] = np.sin(self.source_df['close'])
+        if self.clear_na_flag:
+            self.drop_idxs = features_df.loc[pd.isnull(features_df).any(1), :].index.values
+            features_df = features_df.drop(index=self.drop_idxs)
+        self.features_df = features_df.copy()
+        return self.features_df
+
+    def collect_features_2(self):
+        self.source_df = self.loader.ohlcvbase[f"{self.symbol}-{self.timeframe}"].df.copy()
+
+        cols_create = self.cols_create[-5:]
+        features_df = self.get_feature_datetime(self.source_df, cols_create=cols_create)
+        features_df["open"] = self.source_df["open"].copy()
+        features_df["high"] = self.source_df["high"].copy()
+        features_df["low"] = self.source_df["low"].copy()
+        features_df["close"] = self.source_df["close"].copy()
+        features_df["volume"] = self.source_df["volume"].copy()
+        features_df["log_close"] = np.log(self.source_df["close"])
+        features_df["log_volume"] = np.log(self.source_df["volume"])
+        features_df["diff_close"] = self.source_df["close"].diff()
+        features_df = features_df.replace([np.inf, -np.inf], np.nan)
+        features_df = features_df.fillna(features_df.rolling(6, min_periods=1).mean())
 
         """ Warning! NA must be cleared in final dataframe after shift """
         self.clear_na_flag = True
@@ -463,6 +498,29 @@ class Marker():
             dataset_df.to_csv(path_filename)
         pass
 
+    def create_dataset_df_method_4(self, symbol, timeframe, target_directory='', save_file=True, weight=0.055):
+        self.symbol = symbol
+        self.timeframe = timeframe
+        dataset_df = self.collect_features_2()
+        dataset_df['Signal'] = self.create_power_trend(weight=weight)
+        uniques, counts = np.unique(dataset_df['Signal'].values, return_counts=True)
+        msg_2 = f"Signal type 2\n"
+        for unq, cnt in zip(uniques, counts):
+            msg_2 += f"Unique: {unq} {cnt}\n"
+        msg = f"Pair: {self.symbol} - {self.timeframe}\n" \
+              f"Dataframe shape: {dataset_df.shape} \n" \
+              f"Trend weight: {weight}\n" \
+              f"Start date: {self.loader.ohlcvbase[f'{self.symbol}-{self.timeframe}'].df.index[0]}\n" \
+              f"End date: {self.loader.ohlcvbase[f'{self.symbol}-{self.timeframe}'].df.index[-1]}\n" \
+              f"{msg_2}"
+
+        print(msg)
+        print(dataset_df.head(5).to_string(), f'\n')
+        if save_file:
+            path_filename = os.path.join(target_directory, self.timeframe, f'{self.symbol}-{self.timeframe}.csv')
+            dataset_df.to_csv(path_filename)
+        pass
+
     def mark_all_loader_df(self, target_directory='', signal_method=1,  window_size=5, weight=0.0275):
         for idx, (key, ohlcv_obj) in enumerate(self.loader.ohlcvbase.items()):
             self.symbol = ohlcv_obj.symbol_name
@@ -485,6 +543,11 @@ class Marker():
                                                 weight=0.0275)
             elif signal_method == 3:
                 self.create_dataset_df_method_3(self.symbol,
+                                                timeframe=self.timeframe,
+                                                target_directory=target_directory,
+                                                weight=0.0275)
+            elif signal_method == 4:
+                self.create_dataset_df_method_4(self.symbol,
                                                 timeframe=self.timeframe,
                                                 target_directory=target_directory,
                                                 weight=0.0275)

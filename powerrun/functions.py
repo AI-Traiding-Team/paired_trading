@@ -1,17 +1,21 @@
-import pandas as pd
+# import numpy as np
+# import pandas as pd
 from datamodeling import *
 from networks import *
-import tensorflow as tf
-from tensorflow.keras.callbacks import ReduceLROnPlateau
-from powerrun.models import *
+# from powerrun.models import *
+from powerrun.unets import get_unet1d_new
 from powerrun.customlosses import *
-from oldangrybirdtools import BeachBirdSeriesGenerator, get_angry_bird_model, get_old_model
-import tensorflow.keras.backend as K
-import numpy as np
-__version__ = 0.0019
+# from oldangrybirdtools import BeachBirdSeriesGenerator, get_angry_bird_model, get_old_model
+
+from tensorflow.keras.callbacks import ReduceLROnPlateau
+import tensorflow as tf
+from sklearn.utils import class_weight
+
+__version__ = 0.0022
 
 import warnings
 warnings.filterwarnings("ignore")
+
 
 def dataset_split_show(close_series, train_df_start_end, val_df_start_end, test_df_start_end, symbol):
     _temp_1 = close_series
@@ -135,9 +139,9 @@ class MarkedDataSet:
 
         self.calculate_split_df()
         msg = f"\nSplit dataframe:" \
-              f"Train start-end and length: {self.train_df_start_end[0]}-{self.train_df_start_end[1]} {self.train_df_start_end[0] - self.train_df_start_end[1]}\n" \
-              f"Validation start-end and length: {self.val_df_start_end[0]}-{self.val_df_start_end[1]} {self.val_df_start_end[0] - self.val_df_start_end[1]}\n" \
-              f"Test start-end and length: {self.test_df_start_end[0]}-{self.test_df_start_end[1]} {self.test_df_start_end[0] - self.test_df_start_end[1]}"
+              f"Train start-end and length: {self.train_df_start_end[0]} : {self.train_df_start_end[1]} legth: {self.train_df_start_end[0] - self.train_df_start_end[1]}\n" \
+              f"Validation start-end and length: {self.val_df_start_end[0]} : {self.val_df_start_end[1]} legth: {self.val_df_start_end[0] - self.val_df_start_end[1]}\n" \
+              f"Test start-end and length: {self.test_df_start_end[0]} : {self.test_df_start_end[1]} legth: {self.test_df_start_end[0] - self.test_df_start_end[1]}"
         print(f"{msg}\n")
         self.split_data_df()
         _temp_1 = pd.DataFrame()
@@ -167,12 +171,16 @@ class MarkedDataSet:
             # """ Warning! Now is MinMaxScaler for this dataset """
             # self.features_scaler = MinMaxScaler()
             # self.features_scaler.fit(main_df.values)
-            self.features_scaler = RobustScaler().fit(main_df.values)
+            x_train_df = main_df.iloc[self.train_df_start_end[0]: self.train_df_start_end[1], :]
+            self.features_scaler = RobustScaler().fit(x_train_df.values)
             temp_arr = de_df.values
             x_arr = self.features_scaler.transform(main_df.values)
             x_arr = np.concatenate((temp_arr, x_arr), axis=1)
         else:
-            self.features_scaler = RobustScaler().fit(self.features_df.values)
+            x_train_df = self.features_df.iloc[self.train_df_start_end[0]: self.train_df_start_end[1], :]
+            # x_train_values = x_train_df.values
+            # bad_indices = np.where(np.isinf(x_train_values))
+            self.features_scaler = RobustScaler().fit(x_train_df.values)
             x_arr = self.features_scaler.transform(self.features_df.values)
         print("\nCreate arrays with X (features)", x_arr.shape)
         y_arr = pd.get_dummies(self.y_df["Signal"], dtype=float).values
@@ -257,60 +265,55 @@ class MarkedDataSet:
 
 
 class TrainNN:
-    def __init__(self, mrk_dataset: MarkedDataSet):
+    def __init__(self,
+                 mrk_dataset: MarkedDataSet,
+                 power_trend=0.0275
+                 ):
         self.dice_cce_loss = None
         self.dice_metric = None
         self.mrk_dataset = mrk_dataset
         self.y_Pred = None
-        self.power_trend = 0.0275
+        self.power_trends_list = [0.15, 0.075, 0.055, 0.0275]
+        self.power_trend = power_trend
+        if self.power_trend not in self.power_trends_list:
+            self.power_trends_list.append(self.power_trend)
         self.experiment_name = f"{self.mrk_dataset.symbol}-{self.mrk_dataset.timeframe}"
         self.symbol = self.mrk_dataset.symbol
         self.timeframe = self.mrk_dataset.timeframe
-        self.power_trends_list = (0.15, 0.075, 0.055, 0.0275)
+
         self.dice_metric = DiceCoefficient()
         self.dice_cce_loss = DiceCCELoss()
         self.history = None
         self.epochs = 15
+
         """ Use it only if not using TimeSeries Generator"""
         self.batch_size = None
-
         self.monitor = "val_loss"
-        # self.loss = "categorical_crossentropy"
-        # self.metric = "categorical_accuracy"
-        self.loss = self.dice_cce_loss
-        self.metric = self.dice_metric
-        # if 'dice' in str(self.loss):
-        #     self.monitor = f'val_{self.loss}'
-        # self.keras_model = get_old_model(input_shape=self.mrk_dataset.input_shape)
+        self.loss = "categorical_crossentropy"
+        self.metric = "categorical_accuracy"
+        self.path_filename: str = ''
+        self.model_compiled = False
 
-        # self.net_name = "resnet1d-new"
-        # self.keras_model = get_resnet1d_model_new(input_shape=self.mrk_dataset.input_shape, kernels=64)
-
-        self.net_name = "unet1d"
-        self.keras_model = get_unet1d(input_shape=self.mrk_dataset.input_shape, num_classes=2,  kernels=64)
-
-        # self.net_name = "resnet50v2"
-        # self.keras_model = get_resnet50v2_classification_model(input_shape=self.mrk_dataset.input_shape,
-        #                                                        kernels=64
-        #                                                        )
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5)
-        # self.optimizer = tf.keras.optimizers.SGD(learning_rate=1e-5,
-        #                                          momentum=0.9,
-        #                                          nesterov=True,
-        #                                          ),
-
-        self.path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
-        self.compile()
+        self.net_name = "unet1d_new"
+        self.keras_model = get_unet1d_new(input_shape=self.mrk_dataset.input_shape, num_classes=2, filters=64)
+        # tr.optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5)
+        self.optimizer = tf.keras.optimizers.SGD(learning_rate=1e-3, nesterov=True, momentum=0.9)
+        pass
 
     def compile(self):
+        self.path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
         self.keras_model.summary()
         self.keras_model.compile(optimizer=self.optimizer,
                                  loss=self.loss,
                                  metrics=[self.metric],
                                  )
+        self.model_compiled = True
         pass
 
     def train(self):
+        if not self.model_compiled:
+            self.compile()
+
         chkp = tf.keras.callbacks.ModelCheckpoint(os.path.join("outputs",
                                                                f"{self.experiment_name}_{self.net_name}_{self.power_trend}.h5"
                                                                ),
@@ -320,7 +323,7 @@ class TrainNN:
                                                   )
         rlrs = ReduceLROnPlateau(monitor=self.monitor, factor=0.2, patience=20, min_lr=0.000001)
         callbacks = [rlrs, chkp]
-        path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}_NN.png")
+        path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}_{self.power_trend}_NN.png")
         tf.keras.utils.plot_model(self.keras_model,
                                   to_file=path_filename,
                                   show_shapes=True,
@@ -329,10 +332,10 @@ class TrainNN:
                                   dpi=96,
                                   )
         self.history = self.keras_model.fit(self.mrk_dataset.train_gen,
-                                            epochs=self.epochs,
                                             validation_data=self.mrk_dataset.train_gen,
+                                            epochs=self.epochs,
                                             verbose=1,
-                                            callbacks=callbacks
+                                            callbacks=callbacks,
                                             )
 
     def load_best_weights(self):
@@ -340,16 +343,27 @@ class TrainNN:
         self.keras_model.load_weights(path_filename)
         pass
 
-    def get_predict(self):
-        self.compile()
+    def get_predict(self, x_Data):
+        if not self.model_compiled:
+            self.compile()
         self.load_best_weights()
-        self.y_Pred = self.keras_model.predict(self.mrk_dataset.x_Test)
+        self.y_Pred = self.keras_model.predict(x_Data)
         return self.y_Pred
 
+    def evaluate(self):
+        if not self.model_compiled:
+            self.compile()
+        self.load_best_weights()
+        self.keras_model.evaluate(self.mrk_dataset.x_Test, self.mrk_dataset.y_Test)
+        pass
+
     def figshow_base(self):
-        fig = plt.figure(figsize=(24, 7*2))
+        sub_plots = 1
+        if self.monitor != "val_loss":
+            sub_plots = 2
+        fig = plt.figure(figsize=(24, 10*sub_plots))
         sns.set_style("white")
-        ax1 = fig.add_subplot(1, 2, 1)
+        ax1 = fig.add_subplot(1, sub_plots, 1)
         ax1.set_axisbelow(True)
         ax1.minorticks_on()
         # Turn on the minor TICKS, which are required for the minor GRID
@@ -359,8 +373,6 @@ class TrainNN:
         ax1.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
         N = np.arange(0, len(self.history.history["loss"]))
         plt.plot(N, self.history.history["loss"], label="loss")
-        if 'loss' in self.history.history:
-            plt.plot(N, self.history.history["loss"], label="loss")
         if 'val_loss' in self.history.history:
             plt.plot(N, self.history.history["val_loss"], label="val_loss")
         if 'dice_coef' in self.history.history:
@@ -373,22 +385,33 @@ class TrainNN:
             plt.plot(N, self.history.history["accuracy"], label="accuracy")
         if 'val_accuracy' in self.history.history:
             plt.plot(N, self.history.history["val_accuracy"], label="val_accuracy")
-        plt.title(f"Training Dice CCE Loss and Dice Metric")
+        if 'categorical_accuracy' in self.history.history:
+            plt.plot(N, self.history.history["categorical_accuracy"], label="categorical_accuracy")
+        if 'val_categorical_accuracy' in self.history.history:
+            plt.plot(N, self.history.history["val_categorical_accuracy"], label="val_categorical_accuracy")
+        plt.title(f"Training Loss and Metric")
         plt.legend()
+        if sub_plots == 2:
+            ax2 = fig.add_subplot(1, sub_plots, sub_plots)
+            ax2.set_axisbelow(True)
+            ax2.minorticks_on()
+            # Turn on the minor TICKS, which are required for the minor GRID
+            # Customize the major grid
+            ax2.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+            # Customize the minor grid
+            ax2.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+            if 'dice_cce_loss' in self.history.history:
+                plt.plot(N, self.history.history["dice_cce_loss"], label="dice_cce_loss")
+            if 'val_dice_cce_loss' in self.history.history:
+                plt.plot(N, self.history.history["val_dice_cce_loss"], label="val_dice_cce_loss")
+            plt.legend()
 
-        ax2 = fig.add_subplot(1, 2, 2)
-        ax2.set_axisbelow(True)
-        ax2.minorticks_on()
-        # Turn on the minor TICKS, which are required for the minor GRID
-        # Customize the major grid
-        ax2.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
-        # Customize the minor grid
-        ax2.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-        if 'dice_cce_loss' in self.history.history:
-            plt.plot(N, self.history.history["dice_cce_loss"], label="dice_cce_loss")
-        if 'val_dice_cce_loss' in self.history.history:
-            plt.plot(N, self.history.history["val_dice_cce_loss"], label="val_dice_cce_loss")
-        plt.legend()
+        path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}_{self.power_trend}_learning.png")
+        plt.savefig(path_filename, dpi=96, facecolor='w', edgecolor='w',
+                    orientation='portrait', papertype=None, format=None,
+                    transparent=False, bbox_inches=None, pad_inches=0.1,
+                    frameon=None, metadata=None
+                    )
         plt.show()
         pass
 
@@ -400,11 +423,11 @@ class TrainNN:
                                                              1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
 
         # trend_pred = self.keras_model.predict(self.mrk_dataset.x_Test)
-        trend_pred = self.get_predict()
+        trend_pred = self.get_predict(self.mrk_dataset.x_Test)
         # data_df['trend'] = trend_pred.flatten()
         data_df['trend'] = np.argmax(trend_pred, axis=1)
-        data_df.loc[data_df["trend"] <= 0.5, "trend"] = -1.0
-        data_df.loc[data_df["trend"] > 0.5, "trend"] = 1.0
+        data_df.loc[data_df["trend"] == 0, "trend"] = -1.0
+        # data_df.loc[data_df["trend"] == 1, "trend"] = 1.0
         data_df["Signal"] = data_df['trend']
         # self.mrk_dataset.test_df_backtrade = data_df.copy()
 
@@ -416,20 +439,31 @@ class TrainNN:
         print(data_df["Signal"].head().to_string(), f"\n")
         uniques, counts = np.unique(data_df["Signal"].values, return_counts=True)
         for unq, cnt in zip(uniques, counts):
-            print("Total:", unq, cnt)
+            print(f'Signal: {unq}, total {cnt}')
+        print()
         self.mrk_dataset.test_df_backtrade = data_df
         return data_df
 
-    def show_trend_predict(self):
-        weight = self.power_trend
+    def show_trend_predict(self, show_data='test'):
         print(f"\nВизуализируем результат")
-        data_df = self.mrk_dataset.features_df[
-                  self.mrk_dataset.test_df_start_end[0]: self.mrk_dataset.test_df_start_end[
-                                                             1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
-        y_df = self.mrk_dataset.y_df[self.mrk_dataset.test_df_start_end[0]: self.mrk_dataset.test_df_start_end[
-                                                                                1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
-        trend_pred = self.get_predict()
-        # trend_pred = self.keras_model.predict(self.mrk_dataset.x_Test)
+        if show_data == 'test':
+
+            start_end = self.mrk_dataset.test_df_start_end
+            x_Data = self.mrk_dataset.x_Test
+        elif show_data == 'train':
+            start_end = self.mrk_dataset.train_df_start_end
+            x_Data = self.mrk_dataset.x_Train
+        elif show_data == 'val':
+            start_end = self.mrk_dataset.val_df_start_end
+            x_Data = self.mrk_dataset.x_Val
+        else:
+            sys.exit(f"Error! wrong option in show_data {show_data}")
+        print(f"Show True and prediction of the *** {show_data} ***")
+
+        data_df = self.mrk_dataset.features_df[start_end[0]: start_end[1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
+        y_df = self.mrk_dataset.y_df[start_end[0]: start_end[1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
+
+        trend_pred = self.get_predict(x_Data)
         trend_pred = np.argmax(trend_pred,  axis=1)
 
         # trend_pred = trend_pred.flatten()
@@ -437,35 +471,37 @@ class TrainNN:
         # for visualization we use scaling of trend = 1 to data_df["close"].max()
         max_close = data_df["close"].max()
         min_close = data_df["close"].min()
-        mean_close = data_df["close"].mean()
-        treshhold_level = 0.8
-        trend_pred_df.loc[(trend_pred_df["trend"] > treshhold_level), "trend"] = max_close
-        y_df.loc[(y_df["Signal"] == 1), "Signal"] = max_close
-        trend_pred_df.loc[(trend_pred_df["trend"] <= treshhold_level), "trend"] = min_close
-        y_df.loc[(y_df["Signal"] == 0), "Signal"] = min_close
-        data_df[f"trend_{weight}"] = y_df["Signal"]
+        # mean_close = data_df["close"].mean()
+        # treshhold_level = 0.5
 
-        col_list = data_df.columns.to_list()
-        try:
-           col_list.index("close")
-        except ValueError:
-           msg = f"Error: 'close' column not found in pd.DataFrame only {col_list}. Can't show figure"
-           sys.exit(msg)
+        y_df.loc[(y_df["Signal"] == 1), "Signal"] = max_close
+        y_df.loc[(y_df["Signal"] == 0), "Signal"] = min_close
+        trend_pred_df.loc[(trend_pred_df["trend"] == 1), "trend"] = max_close
+        trend_pred_df.loc[(trend_pred_df["trend"] == 0), "trend"] = min_close
+        data_df[f"trend_{self.power_trend}"] = y_df["Signal"]
+
         fig = plt.figure(figsize=(20, 12))
         ax1 = fig.add_subplot(2, 1,  1)
         ax1.plot(
-                 data_df.index, data_df[f"trend_{weight}"],
+                 data_df.index, data_df[f"trend_{self.power_trend}"],
                  data_df.index, data_df["close"],
                  )
-        ax1.set_ylabel(f'True, weight = {weight}', color='r')
-        plt.title(f"Trend with weight: {weight}")
+        ax1.set_ylabel(f'True, power = {self.power_trend}', color='r')
+        plt.title(f"Trend with power: {self.power_trend}")
         ax2 = fig.add_subplot(2, 1,  2)
         ax2.plot(
                  data_df.index, data_df["close"],
                  data_df.index, trend_pred_df["trend"]
                  )
-        ax2.set_ylabel(f'Pred, weight = {weight}', color='b')
-        plt.title(f"Trend with weight: {weight}")
+        ax2.set_ylabel(f'Pred, power = {self.power_trend}', color='b')
+        plt.title(f"Trend with power: {self.power_trend}")
+        path_filename = os.path.join('outputs',
+                                     f"{self.experiment_name}_{self.net_name}_{self.power_trend}_trend_predict_{show_data}.png")
+        plt.savefig(path_filename, dpi=96, facecolor='w', edgecolor='w',
+                    orientation='portrait', papertype=None, format=None,
+                    transparent=False, bbox_inches=None, pad_inches=0.1,
+                    frameon=None, metadata=None
+                    )
         plt.show()
         pass
 

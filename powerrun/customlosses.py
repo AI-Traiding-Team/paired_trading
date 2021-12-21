@@ -64,7 +64,7 @@ class DiceCCELoss(tensorflow.keras.metrics.Metric):
         self.cce_loss = self.cce(y_true, y_pred)
         intersection = backend.sum(y_true * y_pred, axis=axis)
         union = backend.sum(y_true, axis=axis) + backend.sum(y_pred, axis=axis)
-        self.dice = 1 - backend.mean((2. * intersection + smooth) / (union + smooth), axis=0)
+        self.dice = 1.0 - (backend.mean((2. * intersection + smooth) / (union + smooth), axis=0))
         self.dice = self.cce_loss + self.dice
 
     def result(self):

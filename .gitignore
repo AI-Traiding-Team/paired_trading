@@ -17,6 +17,7 @@ source_ds0/
 source_ds1/
 source_ds2/
 source_ds3/
+source_ds4/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -144,3 +145,4 @@ dmypy.json
 
 
 
+/source_ds0/1m/

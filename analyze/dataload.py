@@ -248,10 +248,15 @@ class DataLoad(object):
     def check_and_repair(self, do_repair=True):
         # delete duplicates from dataframe
         for name, ohlcv in self.ohlcvbase.items():
+            ohlcv_interval = str(ohlcv.timeframe)
+            if ohlcv_interval[-1] == 'm':
+                ohlcv_interval = f'{ohlcv_interval[:-1]}min'
+            elif ohlcv_interval[-1] == 'h':
+                ohlcv_interval = f'{ohlcv_interval[:-1]}H'
             ohlcv.df['datetime'] = ohlcv.df.index
             ohlcv.df = ohlcv.df.drop_duplicates(subset='datetime')
             time_intervals_column = ohlcv.df.index
-            time_intervals = pd.date_range(ohlcv.df.index[0], ohlcv.df.index[-1], freq='15T')
+            time_intervals = pd.date_range(ohlcv.df.index[0], ohlcv.df.index[-1], freq=ohlcv_interval)
             for inter in time_intervals:
                 if inter not in time_intervals_column:
                     ohlcv.df = pd.concat([ohlcv.df, pd.DataFrame([inter], columns=['datetime'])], ignore_index = True)
@@ -264,7 +269,8 @@ class DataLoad(object):
             ohlcv.df = ohlcv.df.drop(columns=['datetime'])
             ohlcv.df.index.name = 'datetimeindex'
             if do_repair:
-                ohlcv.df = ohlcv.df.fillna(method="ffill")
+                ohlcv.df = ohlcv.df.fillna(ohlcv.df.rolling(6, min_periods=1).mean())
+                # ohlcv.df = ohlcv.df.fillna(method="ffill")
         pass
 
 
