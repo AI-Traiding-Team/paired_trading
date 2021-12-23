@@ -1,3 +1,7 @@
+import os
+import random
+import numpy as np
+
 from tensorflow.keras.layers import Dense, Input, Flatten, Conv1D, ReLU, ELU, LeakyReLU, MaxPool1D, AveragePooling1D, Dropout, \
     Conv2D, LeakyReLU, Reshape, BatchNormalization, Activation, Conv2DTranspose, Conv1DTranspose, Conv1D
 from tensorflow.keras.layers import AveragePooling2D, MaxPooling2D, MaxPooling1D, concatenate, GlobalAveragePooling2D, \
@@ -6,35 +10,40 @@ import tensorflow as tf
 
 __version__ = 0.0012
 
+SEED = 42
+os.environ['PYTHONHASHSEED'] = str(SEED)
+random.seed(SEED)
+np.random.seed(SEED)
+tf.random.set_seed(SEED)
 
-def get_resnet50v2_classification_model(input_shape=(40, 16, 1),
-                                        kernels=64,
+
+def get_resnet50v2_classification_model(input_shape=(360, 15, 1),
+                                        filters=64,
                                         num_classes=2,
                                         ):
 
     input_shape = (*input_shape, 1)
     new_in = Input(shape=input_shape)
-    # heading = Reshape((int(input_shape[0]/2), input_shape[1]*2, 1,))(new_in)
-
+    heading = Reshape((int(input_shape[0]/4), input_shape[1]*4, 1,))(new_in)
     base_model = tf.keras.applications.ResNet50V2(include_top=False,
                                                   weights=None,
                                                   input_tensor=None,
-                                                  # input_shape=(int(input_shape[0]/2), input_shape[1]*2, 1,),
-                                                  input_shape=input_shape,
+                                                  input_shape=(int(input_shape[0]/4), input_shape[1]*4, 1,),
+                                                  # input_shape=input_shape,
                                                   pooling=None,
                                                   classes=num_classes,
                                                   # **kwargs,
                                                   )
     base_model.layers.pop(0)
     base_model.trainable = True
-    # base_output = base_model(heading)
-    base_output = base_model(new_in)
+    base_output = base_model(heading)
+    # base_output = base_model(new_in)
     x = GlobalAveragePooling2D()(base_output)
-    x = Dense(kernels*4, activation='relu')(x)
-    x = Dropout(0.5)(x)
-    x = Dense(kernels*2, activation='relu')(x)
+    x = Dense(filters*8, activation='relu')(x)
     x = Dropout(0.35)(x)
-    x = Dense(int(kernels/2), activation='relu')(x)
+    x = Dense(filters*4, activation='relu')(x)
+    x = Dropout(0.35)(x)
+    x = Dense(int(filters/2), activation='relu')(x)
     x_out = Dense(num_classes, activation='softmax')(x)
     new_model = tf.keras.models.Model(inputs=new_in, outputs=x_out)
     return new_model
@@ -68,6 +77,7 @@ def get_resnet1d_model(
     x_out = Dense(1, activation='sigmoid')(x)
     model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
     return model
+
 
 def get_resnet1d_model_tahn(
                             input_shape=(40, 16,),
@@ -126,44 +136,43 @@ def get_resnet1d_model_tahn(
     model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
     return model
 
-def get_resnet1d_model_new(
-                            input_shape=(40, 16,),
-                            kernels=64,
-                            stride=4,
-                            ):
-    # tf.keras.backend.set_floatx('float64')
 
-    def residual_block_max(x, kernels, stride, pool=2):
-        out = Conv1D(kernels, stride, padding='same')(x)
+def get_resnet1d_model_new(
+                           input_shape=(360, 15),
+                           filters=64,
+                           stride=4,
+                           num_classes=2,
+                           ):
+
+    def residual_block_max(x, filters, stride, pool=2):
+        out = Conv1D(filters, stride, padding='same')(x)
         out = ReLU()(out)
-        out = Conv1D(kernels, stride, padding='same')(out)
+        out = Conv1D(filters, stride, padding='same')(out)
         out = tf.keras.layers.add([x, out])
         out = ReLU()(out)
         out = MaxPool1D(pool, 2)(out)
         return out
 
     x_in = Input(shape=input_shape)
-    x = Dense(kernels, activation="relu")(x_in)
-    x = Conv1D(kernels, stride)(x)
-    x1_1 = residual_block_max(x, kernels, stride, pool=10)
-    x1_2 = residual_block_max(x1_1, kernels, stride, pool=9)
-    x1_3 = residual_block_max(x1_2, kernels, stride, pool=5)
-    x1_4 = residual_block_max(x1_3, kernels, stride, pool=4)
-    x1_5 = residual_block_max(x1_4, kernels, stride, pool=3)
-    x1_6 = residual_block_max(x1_5, kernels, stride, pool=2)
+    x = Dense(filters, activation="relu")(x_in)
+    x = Conv1D(filters, stride)(x)
+    x1_1 = residual_block_max(x, filters, stride, pool=15)
+    x1_2 = residual_block_max(x1_1, filters, stride, pool=10)
+    x1_3 = residual_block_max(x1_2, filters, stride, pool=7)
+    x1_4 = residual_block_max(x1_3, filters, stride, pool=5)
+    x1_5 = residual_block_max(x1_4, filters, stride, pool=3)
+    x1_6 = residual_block_max(x1_5, filters, stride, pool=2)
 
     x = concatenate([x, x1_1, x1_2, x1_3, x1_4, x1_5, x1_6], axis=-2)
     x = Flatten()(x)
-    x = Dense(kernels*4, activation="relu")(x)
+    x = Dense(filters*4, activation="relu")(x)
     x = Dropout(0.35)(x)
-    x = Dense(kernels*2, activation="relu")(x)
+    x = Dense(filters*2, activation="relu")(x)
     x = Dropout(0.35)(x)
     x = Dense(32, activation="relu")(x)
-    x_out = Dense(2, activation='softmax')(x)
+    x_out = Dense(num_classes, activation='softmax')(x)
     model = tf.keras.models.Model(inputs=x_in, outputs=x_out)
     return model
-
-
 
 def get_angry_bird_model(input_shape):
     def conv_layer(input, n, k_size=(3, 5), separate=False):
@@ -201,7 +210,6 @@ def get_angry_bird_model(input_shape):
     x_out = Dense(2, activation='softmax')(x)
 
     return tf.keras.models.Model(input_layer, x_out)
-
 
 
 def get_resnet1d_regression(

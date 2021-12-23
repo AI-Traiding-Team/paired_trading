@@ -1,17 +1,28 @@
-# import numpy as np
-# import pandas as pd
-from datamodeling import *
+import os
+import time
+import random
+import numpy as np
+import pandas as pd
+
 from networks import *
 # from powerrun.models import *
+from datamodeling import *
 from powerrun.unets import get_unet1d_new
 from powerrun.customlosses import *
+
 # from oldangrybirdtools import BeachBirdSeriesGenerator, get_angry_bird_model, get_old_model
 
-from tensorflow.keras.callbacks import ReduceLROnPlateau
 import tensorflow as tf
-from sklearn.utils import class_weight
+from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping, ModelCheckpoint
 
-__version__ = 0.0022
+__version__ = 0.0025
+
+
+SEED = 42
+os.environ['PYTHONHASHSEED'] = str(SEED)
+random.seed(SEED)
+np.random.seed(SEED)
+tf.random.set_seed(SEED)
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -139,9 +150,12 @@ class MarkedDataSet:
 
         self.calculate_split_df()
         msg = f"\nSplit dataframe:" \
-              f"Train start-end and length: {self.train_df_start_end[0]} : {self.train_df_start_end[1]} legth: {self.train_df_start_end[0] - self.train_df_start_end[1]}\n" \
-              f"Validation start-end and length: {self.val_df_start_end[0]} : {self.val_df_start_end[1]} legth: {self.val_df_start_end[0] - self.val_df_start_end[1]}\n" \
-              f"Test start-end and length: {self.test_df_start_end[0]} : {self.test_df_start_end[1]} legth: {self.test_df_start_end[0] - self.test_df_start_end[1]}"
+              f"Train start-end: {self.train_df_start_end[0]} : {self.train_df_start_end[1]}\n" \
+              f"Train length: {self.train_df_start_end[1] - self.train_df_start_end[0]}\n" \
+              f"Validation start-end: {self.val_df_start_end[0]} : {self.val_df_start_end[1]}\n" \
+              f"Validation length: {self.val_df_start_end[1] - self.val_df_start_end[0]}\n" \
+              f"Test start-end: {self.test_df_start_end[0]} : {self.test_df_start_end[1]}\n" \
+              f"Test length: {self.test_df_start_end[1] - self.test_df_start_end[0]}"
         print(f"{msg}\n")
         self.split_data_df()
         _temp_1 = pd.DataFrame()
@@ -314,15 +328,14 @@ class TrainNN:
         if not self.model_compiled:
             self.compile()
 
-        chkp = tf.keras.callbacks.ModelCheckpoint(os.path.join("outputs",
-                                                               f"{self.experiment_name}_{self.net_name}_{self.power_trend}.h5"
-                                                               ),
-                                                  mode='min',
-                                                  monitor=self.monitor,
-                                                  save_best_only=True
-                                                  )
+        chkp = ModelCheckpoint(os.path.join("outputs", f"{self.experiment_name}_{self.net_name}_{self.power_trend}.h5"),
+                               mode='min',
+                               monitor=self.monitor,
+                               save_best_only=True,
+                               )
         rlrs = ReduceLROnPlateau(monitor=self.monitor, factor=0.2, patience=20, min_lr=0.000001)
-        callbacks = [rlrs, chkp]
+        es = EarlyStopping(patience=18, restore_best_weights=True)
+        callbacks = [rlrs, chkp, es]
         path_filename = os.path.join('outputs', f"{self.experiment_name}_{self.net_name}_{self.power_trend}_NN.png")
         tf.keras.utils.plot_model(self.keras_model,
                                   to_file=path_filename,
@@ -422,7 +435,6 @@ class TrainNN:
                   self.mrk_dataset.test_df_start_end[0]: self.mrk_dataset.test_df_start_end[
                                                              1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
 
-        # trend_pred = self.keras_model.predict(self.mrk_dataset.x_Test)
         trend_pred = self.get_predict(self.mrk_dataset.x_Test)
         # data_df['trend'] = trend_pred.flatten()
         data_df['trend'] = np.argmax(trend_pred, axis=1)
@@ -447,7 +459,6 @@ class TrainNN:
     def show_trend_predict(self, show_data='test'):
         print(f"\nВизуализируем результат")
         if show_data == 'test':
-
             start_end = self.mrk_dataset.test_df_start_end
             x_Data = self.mrk_dataset.x_Test
         elif show_data == 'train':
@@ -460,19 +471,22 @@ class TrainNN:
             sys.exit(f"Error! wrong option in show_data {show_data}")
         print(f"Show True and prediction of the *** {show_data} ***")
 
-        data_df = self.mrk_dataset.features_df[start_end[0]: start_end[1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
-        y_df = self.mrk_dataset.y_df[start_end[0]: start_end[1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
+        # data_df = self.mrk_dataset.features_df[start_end[0]: start_end[1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
+        # y_df = self.mrk_dataset.y_df[start_end[0]: start_end[1] - self.mrk_dataset.tsg_window_length - self.mrk_dataset.tsg_overlap]
+        data_df = self.mrk_dataset.features_df[start_end[0]: start_end[1]]
+        y_df = self.mrk_dataset.y_df[start_end[0]: start_end[1]]
+
+        max_close = data_df["close"].max()
+        min_close = data_df["close"].min()
+        mean_close = data_df["close"].mean()
 
         trend_pred = self.get_predict(x_Data)
         trend_pred = np.argmax(trend_pred,  axis=1)
+        zeros_pad = np.zeros([self.mrk_dataset.tsg_window_length + self.mrk_dataset.tsg_overlap])
+        zeros_pad[:] = mean_close
+        new_trend = np.hstack([zeros_pad, trend_pred])
 
-        # trend_pred = trend_pred.flatten()
-        trend_pred_df = pd.DataFrame(data=trend_pred, columns=["trend"])
-        # for visualization we use scaling of trend = 1 to data_df["close"].max()
-        max_close = data_df["close"].max()
-        min_close = data_df["close"].min()
-        # mean_close = data_df["close"].mean()
-        # treshhold_level = 0.5
+        trend_pred_df = pd.DataFrame(data=new_trend, columns=["trend"])
 
         y_df.loc[(y_df["Signal"] == 1), "Signal"] = max_close
         y_df.loc[(y_df["Signal"] == 0), "Signal"] = min_close
@@ -482,6 +496,13 @@ class TrainNN:
 
         fig = plt.figure(figsize=(20, 12))
         ax1 = fig.add_subplot(2, 1,  1)
+        ax1.set_axisbelow(True)
+        ax1.minorticks_on()
+        # Turn on the minor TICKS, which are required for the minor GRID
+        # Customize the major grid
+        ax1.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+        # Customize the minor grid
+        ax1.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
         ax1.plot(
                  data_df.index, data_df[f"trend_{self.power_trend}"],
                  data_df.index, data_df["close"],
@@ -489,6 +510,13 @@ class TrainNN:
         ax1.set_ylabel(f'True, power = {self.power_trend}', color='r')
         plt.title(f"Trend with power: {self.power_trend}")
         ax2 = fig.add_subplot(2, 1,  2)
+        ax2.set_axisbelow(True)
+        ax2.minorticks_on()
+        # Turn on the minor TICKS, which are required for the minor GRID
+        # Customize the major grid
+        ax2.grid(which='major', linestyle='-', linewidth='0.5', color='gray')
+        # Customize the minor grid
+        ax2.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
         ax2.plot(
                  data_df.index, data_df["close"],
                  data_df.index, trend_pred_df["trend"]

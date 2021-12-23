@@ -1,5 +1,5 @@
 import os.path
-
+import random
 # from datamodeling.dscreator import DSCreator
 from analyze import DataLoad
 # from datamodeling.datafeatures import DSProfile
@@ -7,9 +7,10 @@ import pandas as pd
 import numpy as np
 from maketarget.mother import BigFatMommyMakesTargetMarkers
 
-__version__ = 0.0010
+__version__ = 0.0011
 
-class Marker():
+
+class Marker:
     def __init__(self, loader: DataLoad):
         self.loader = loader
         self.source_df = None
@@ -293,10 +294,19 @@ class Marker():
         features_df["log_close"] = np.log(self.source_df["close"])
         features_df["log_volume"] = np.log(self.source_df["volume"])
         features_df["diff_close"] = self.source_df["close"].diff()
-        features_df = features_df.replace([np.inf, -np.inf], np.nan)
+
+        conditions_0 = (features_df['open'] == features_df['low']) | (features_df['close'] == features_df['low'])
+        features_df.loc[conditions_0, "open"] += random.uniform(1e-8, 5e-8)
+        features_df.loc[conditions_0, "close"] += random.uniform(1e-8, 5e-8)
+
+        conditions_1 = (features_df['open'] == features_df['high']) | (features_df['close'] == features_df['high'])
+        features_df.loc[conditions_1, "open"] -= random.uniform(1e-8, 5e-8)
+        features_df.loc[conditions_1, "close"] -= random.uniform(1e-8, 5e-8)
+        # features_df = features_df.replace([np.inf, -np.inf], np.nan)
+        # features_df = features_df.fillna(features_df.rolling(6, min_periods=1).mean())
+
         # count = np.isinf(features_df).values.sum()
         # print("It contains " + str(count) + " infinite values")
-        features_df = features_df.fillna(features_df.rolling(6, min_periods=1).mean())
 
         """ Warning! NA must be cleared in final dataframe after shift """
         self.clear_na_flag = True
@@ -326,10 +336,19 @@ class Marker():
         features_df["log_close"] = np.log(self.source_df["close"])
         features_df["log_volume"] = np.log(self.source_df["volume"])
         features_df["diff_close"] = self.source_df["close"].diff()
-        features_df = features_df.replace([np.inf, -np.inf], np.nan)
-        # count = np.isinf(features_df).values.sum()
-        # print("It contains " + str(count) + " infinite values")
-        features_df = features_df.fillna(features_df.rolling(6, min_periods=1).mean())
+
+        conditions_0 = (features_df['open'] == features_df['low']) | (features_df['close'] == features_df['low'])
+        features_df.loc[conditions_0, "open"] += random.uniform(1e-8, 5e-8)
+        features_df.loc[conditions_0, "close"] += random.uniform(1e-8, 5e-8)
+
+        conditions_1 = (features_df['open'] == features_df['high']) | (features_df['close'] == features_df['high'])
+        features_df.loc[conditions_1, "open"] -= random.uniform(1e-8, 5e-8)
+        features_df.loc[conditions_1, "close"] -= random.uniform(1e-8, 5e-8)
+
+        # features_df = features_df.replace([np.inf, -np.inf], np.nan)
+        # features_df = features_df.fillna(features_df.rolling(6, min_periods=1).mean())
+        count = np.isinf(features_df).values.sum()
+        print("It contains " + str(count) + " infinite values")
 
         """ Warning! NA must be cleared in final dataframe after shift """
         self.clear_na_flag = True
@@ -355,8 +374,20 @@ class Marker():
         features_df["log_close"] = np.log(self.source_df["close"])
         features_df["log_volume"] = np.log(self.source_df["volume"])
         features_df["diff_close"] = self.source_df["close"].diff()
-        features_df = features_df.replace([np.inf, -np.inf], np.nan)
-        features_df = features_df.fillna(features_df.rolling(6, min_periods=1).mean())
+
+        conditions_0 = (features_df['open'] == features_df['low']) | (features_df['close'] == features_df['low'])
+        features_df.loc[conditions_0, "open"] += random.uniform(1e-8, 5e-8)
+        features_df.loc[conditions_0, "close"] += random.uniform(1e-8, 5e-8)
+
+        conditions_1 = (features_df['open'] == features_df['high']) | (features_df['close'] == features_df['high'])
+        features_df.loc[conditions_1, "open"] -= random.uniform(1e-8, 5e-8)
+        features_df.loc[conditions_1, "close"] -= random.uniform(1e-8, 5e-8)
+
+        # features_df = features_df.replace([np.inf, -np.inf], np.nan)
+        # features_df = features_df.fillna(features_df.rolling(6, min_periods=1).mean())
+
+        count = np.isinf(features_df).values.sum()
+        print("It contains " + str(count) + " infinite values")
 
         """ Warning! NA must be cleared in final dataframe after shift """
         self.clear_na_flag = True
