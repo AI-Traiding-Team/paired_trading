@@ -1,2 +1,2 @@
 from analyze import *
-from marker import *
+from powertrend import calc_power_trend

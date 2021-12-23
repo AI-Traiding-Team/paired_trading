@@ -39,6 +39,7 @@ dependencies:
   - schedule>=1.1.0
   - ipywidgets
   - sqlite
+  - optuna~=2.10.0
   - pip:
     - tensorflow>=2.6.1,<2.7.0
     - python-binance~=1.0.15
